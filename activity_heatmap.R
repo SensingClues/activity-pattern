@@ -23,6 +23,10 @@
 ## [] x- axis for hourly view is in steps of 2 atm --> make 1
 ## [] include normalised view 0-1 
 ## [] use Shiny to read in data
+## [] Include Ontology ID as ID not concept label
+## [] Include box that allows to insert method of observation
+## [] Visualise numbers in the bar graph and heatmap
+## [] Include server side of methods
 
 ## Set up libraries
 library(pacman)
@@ -41,7 +45,7 @@ df <- get_observations(
   cookie,
   from = as.Date("2023-01-01"), # data was available from 2024 , adapt later to long e.g. from 1900-01-01
   to = Sys.Date(),
-  group = 'focus-project-1234' # demo group Africa
+  group = 'focus-group-123' # demo group Africa
 ) 
 
 
@@ -53,6 +57,9 @@ obs_df <- subset(df,description  == "Observation animal")
 dim(obs_df) == dim(subset(df, observationType == "animal")) # cross check if you really got all the animal data, seems like it
 obs_df$when <- as.POSIXct(obs_df$when, format = "%Y-%m-%dT%H:%M:%S") # proper format for later
 
+## Note to myself: I need to filter out the properties from the observation from the animal names
+
+write.csv(obs_df, file ="C:/Users/hanna/Documents/africa_demo.csv")
 ## ---------------------------------------------------------------------------------------------------------------------------------------
 ## Make first Shiny version
 # UI
@@ -62,17 +69,26 @@ ui <- fluidPage(
       selectInput("selected_year", "Select Year:", choices = c("All", unique(format(obs_df$when, "%Y")))),  # choices from all years in data
       radioButtons("time_input", "Select time period:",  # period one wants to look at
                    choices = c("Hourly" = "hourly", "Monthly" = "monthly", "Seasonal" = "season")),
+      numericInput("topX", "Number of rows to display:", value = 10, min = 1, step = 1),  # User input for top X
+      radioButtons("method", "Select method of observation:",  # period one wants to look at
+                   choices = c("Cameratrap" = "cameratrap", "Animal sighting" = "animal sighting", "Other" = "other")),
       conditionalPanel( # only display if input is season
         condition = "input.time_input == 'season'", 
         numericInput("num_seasons", "Number of Seasons:", value = 1, min = 1), # select how many seasons you expect
-        uiOutput("season_inputs") # placeholder that reacts to server side
+        uiOutput("season_inputs"), # placeholder that reacts to server side
       )
     ),
+    conditionalPanel( # only display if input is season
+      condition = "input.method == 'other'", 
+      numericInput("num_methods", "Number of methods:", value = 1, min = 1), # select how many seasons you expect
+      uiOutput("Methods"), # placeholder that reacts to server side --> need to include server side still
+    )
+  ),
     mainPanel(
       plotlyOutput("combined_plot")
     )
   )
-)
+
 
 server <- function(input, output, session) {
   
@@ -81,21 +97,21 @@ server <- function(input, output, session) {
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
       textInput(inputId = paste0("season_", i), label = paste("Season", i, "(e.g., '12,1,2' for Dec-Jan-Feb):"), value = "") 
-    }) # loop through number of seasons and ad suffix (e.g. 2 seasons = season_1, season_2)
+    }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
   
   # Reactive expression to parse user-defined seasons
-  user_defined_seasons <- reactive({ # allows automatic update when input (# seasons or input per season#) changes
+  user_defined_seasons <- reactive({ 
     req(input$num_seasons)
-    seasons <- list() # initialise
-    for (i in 1:input$num_seasons) { # loop through seasons
+    seasons <- list() 
+    for (i in 1:input$num_seasons) {
       season_input <- input[[paste0("season_", i)]]
-      if (!is.null(season_input) && season_input != "") { # season input must be not empty
-        months <- unlist(strsplit(season_input, ",")) # get all the inputs 
-        seasons[[paste0("Season_", i)]] <- sprintf("%02d", as.numeric(trimws(months))) # automatically format 1 to 01 to ensure that it works --> e.g. outL: list season_1 with 01,02 as value
+      if (!is.null(season_input) && season_input != "") {
+        months <- unlist(strsplit(season_input, ","))
+        seasons[[paste0("Season_", i)]] <- sprintf("%02d", as.numeric(trimws(months)))
       }
     }
-    seasons # return seasons list
+    seasons
   })  
   
   #  Filter data based on year
@@ -107,25 +123,23 @@ server <- function(input, output, session) {
     }
   })
   
-  # Prepare data for plotting --> in reactive format, meaning based on user input
+  # Prepare data for plotting --> in reactive format
   plot_data <- reactive({
-    data <- filtered_data() # your reactive input data becomes data
-    time_input <- input$time_input # selected time bins (season, hourly, monthly)
+    data <- filtered_data() 
+    time_input <- input$time_input 
     seasons <- user_defined_seasons() 
     
-    # get dataframe with extra column indicating the bin in proper format
     data <- data %>%
       mutate(Period = case_when(
         time_input == "hourly" ~ format(when, "%H"),
         time_input == "monthly" ~ format(when, "%m"),
         time_input == "season" ~ purrr::map_chr(format(when, "%m"), function(month) {
           season <- names(seasons)[sapply(seasons, function(s) month %in% s)] 
-          if (length(season) > 0) season else NA #For example, if month is "01", this might return TRUE for Season_1 and FALSE for other seasons.
+          if (length(season) > 0) season else NA 
         }),
         TRUE ~ NA_character_
       ))
     
-    # make naming nice (hours, month abbreviations etc) and make it a factor
     if (time_input == "hourly") {
       data$Period <- factor(data$Period, levels = sprintf("%02d", 0:23), labels = paste0(sprintf("%02d", 0:23), "h"))
     } else if (time_input == "monthly") {
@@ -134,30 +148,38 @@ server <- function(input, output, session) {
       data$Period <- factor(data$Period, levels = names(seasons))
     }
     
-    data # return data
+    data
   })
   
   # Render combined plot
   output$combined_plot <- renderPlotly({
-    # render function to keep it reactive
-    data <- plot_data() # your filtered data with extra columns becomes data
+    data <- plot_data() 
     
     # Group data by Period and Label
     bar_data <- data %>%
       group_by(conceptLabel) %>%
       summarise(Counts = n(), .groups = 'drop')
     
+    
+    # Apply top X filter
+    topX <- input$topX
+    if (topX > 0) {
+      bar_data <- bar_data %>% 
+        top_n(topX, Counts) %>% 
+        arrange(desc(Counts))
+    }
+    
     # Order species according to frequency of detection for the bar chart
     ordered_species <- bar_data %>%
-      arrange(Counts) %>% #always asc
-      pull(conceptLabel) #get vector of names
+      arrange(Counts) %>% 
+      pull(conceptLabel) 
     
     # Heatmap Data Preparation
     heatmap_data <- data %>%
       group_by(conceptLabel, Period) %>%
-      summarise(Counts = n(), .groups = 'drop') # summarise counts per period
+      summarise(Counts = n(), .groups = 'drop')
     
-    # Create a full set of all combinations of conceptLabel and Period so that you plot the full range of the selected time bins (e.. 1-12,1-24)
+    # Create a full set of all combinations of conceptLabel and Period
     full_periods <- expand.grid(
       conceptLabel = unique(heatmap_data$conceptLabel),
       Period = levels(data$Period)
@@ -166,14 +188,18 @@ server <- function(input, output, session) {
     # Left join the full combination set with the observed data to ensure all combinations
     heatmap_data_complete <- full_periods %>%
       left_join(heatmap_data, by = c("conceptLabel", "Period")) %>%
-      mutate(Counts = ifelse(is.na(Counts), 0, Counts))  # Replace NAs with 0s
+      mutate(Counts = ifelse(is.na(Counts), 0, Counts))  
     
+    # Apply top X filter to heatmap data
+    if (topX > 0) {
+      heatmap_data_complete <- heatmap_data_complete %>%
+        filter(conceptLabel %in% bar_data$conceptLabel)
+    }
+    ## ORDERED SPECIES NEEDS TO BE INCLUDED HERE! FILTERED
     
-    # Ensure all species and periods are factors with appropriate levels and that data is ordered in ascending frequencies
     heatmap_data_complete$conceptLabel <- factor(heatmap_data_complete$conceptLabel, levels = unique(c(
       ordered_species, heatmap_data_complete$conceptLabel
     )))
-    
     
     # Bar graph with summarised counts
     bar_chart <- plot_ly(
@@ -210,7 +236,6 @@ server <- function(input, output, session) {
         yaxis = list(title = 'Species')
       )
     
-    
     subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
       layout(title = 'Activity Pattern')
   })
@@ -218,4 +243,3 @@ server <- function(input, output, session) {
 
 # Run the application
 shinyApp(ui = ui, server = server)
-
