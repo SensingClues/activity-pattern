@@ -28,6 +28,7 @@
 ## [] Visualise numbers in the bar graph and heatmap
 ## [] Include server side of methods
 ## [] Include relative counts
+## [] add reverse ordering
 
 ## Set up libraries
 library(pacman)
@@ -35,7 +36,7 @@ p_load(ggplot2, plotly, dplyr, tidyr, quantmod, sensingcluesr) # makes loading a
 
 library(tidyr)
 ## import data from SC platform - chose Demo group africa
-cookie <- login_cluey("XXXX", "XXXX") # insert login 
+cookie <- login_cluey("XXX", "XXXX") # insert login 
 
 groups <- get_groups(cookie, 
                      from = "1900-01-01", # set so that dates include everything
@@ -46,7 +47,7 @@ df <- get_observations(
   cookie,
   from = as.Date("2023-01-01"), # data was available from 2024 , adapt later to long e.g. from 1900-01-01
   to = Sys.Date(),
-  group = 'focus-group-123' # demo group Africa
+  group = 'focus-project-1234' # demo group Africa
 ) 
 
 
@@ -94,7 +95,7 @@ server <- function(input, output, session) {
       textInput(inputId = paste0("season_", i), label = paste("Season", i, "(e.g., '12,1,2' for Dec-Jan-Feb):"), value = "") 
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
-  
+  message(print(class(output)))
   # Reactive expression to parse user-defined seasons
   user_defined_seasons <- reactive({ 
     req(input$num_seasons)
