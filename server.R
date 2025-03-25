@@ -896,128 +896,70 @@ session$userData$plot_data <- reactive({
       bar_df <- df %>%
         group_by(conceptLabel) %>%
         summarise(Counts = n(), .groups = 'drop')
-      
-      # Apply top X filter
-      topX <- input$topX
-      if (topX > 0) {
-        bar_df <- bar_df %>%
-          top_n(topX, Counts) %>%
-          arrange(desc(Counts))
-      }
-      
-      # Extract ordered conceptLabels based on counts for heatmap
-      ordered_conceptLabels <- bar_df %>%
-        arrange(Counts) %>% 
-        pull(conceptLabel)
-      
-      # Return both the bar_df and ordered conceptLabels
-      return(ordered_conceptLabels)
+
     }
   })
-  
+
   session$userData$heatmap_data <- reactive({
     session$userData$plot_data() %...>% { 
       df <- .
+      message("Debug - heatmap_data(): Resolving plot_data. Initial rows: ", nrow(df))
       
-      # Group data by conceptLabel and Period to prepare heatmap data
-      heatmap_data <- df %>%
+      # Ensure required columns exist before proceeding
+      required_cols <- c("conceptLabel", "Period")
+      missing_cols <- setdiff(required_cols, colnames(df))
+      if (length(missing_cols) > 0) {
+        message("Error - heatmap_data(): Missing required columns: ", paste(missing_cols, collapse = ", "))
+        return(data.frame())  # Return an empty dataframe to avoid crashes
+      }
+      
+      # Group and summarize
+      df <- df %>%
         group_by(conceptLabel, Period) %>%
         summarise(Counts = n(), .groups = 'drop')
+      message("Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ", nrow(df))
       
-      # Create a full set of all combinations of conceptLabel and Period
+      # Ensure all periods are represented
       full_periods <- expand.grid(
-        conceptLabel = unique(heatmap_data$conceptLabel),
-        Period = levels(df$Period)
+        conceptLabel = unique(df$conceptLabel),
+        Period = levels(factor(df$Period))
       )
+      message("Debug - heatmap_data(): Created full period grid with ", nrow(full_periods), " rows.")
       
-      # Left join the full combination set with the observed data to ensure all combinations
-      heatmap_data_complete <- full_periods %>%
-        left_join(heatmap_data, by = c("conceptLabel", "Period")) %>%
-        mutate(Counts = ifelse(is.na(Counts), 0, Counts))  # Replace NA Counts with 0
+      df <- full_periods %>%
+        left_join(df, by = c("conceptLabel", "Period")) %>%
+        mutate(Counts = ifelse(is.na(Counts), 0, Counts))
+      message("Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ", nrow(df))
       
-      # Apply top X filter to heatmap data
-      topX <- input$topX
+      # Initialize df_result
+      df_result <- df
       
-      # Resolve bar_data before applying it to heatmap logic
-      bar_data_resolved <- session$userData$bar_data() %...>% { 
-        bar_df <- .  # Resolve the bar_data here
+      # Resolve bar_data() BEFORE using it
+      session$userData$bar_data() %...>% { bar_df <- .
+      
+      if (is.null(bar_df) || nrow(bar_df) == 0) {
+        message("Warning - heatmap_data(): bar_data() is NULL or empty, skipping Top X filter.")
+      } else {
+        message("Debug - heatmap_data(): bar_data() has ", nrow(bar_df), " rows.")
         
-        # Extract ordered conceptLabels from bar_data
-        ordered_conceptLabels <- bar_df %>%
-          arrange(Counts) %>%
-          pull(conceptLabel)
+        # Extract top concept labels and remove NAs
+        top_concepts <- unique(bar_df$conceptLabel)
+        top_concepts <- top_concepts[!is.na(top_concepts)]  # Remove any NA values
         
-        if (topX > 0) {
-          # Filter the heatmap data to include only the top X conceptLabels based on the bar chart
-          heatmap_data_complete <- heatmap_data_complete %>%
-            filter(conceptLabel %in% ordered_conceptLabels[1:topX])
+        if (length(top_concepts) == 0) {
+          message("Warning - heatmap_data(): No valid top concepts found, skipping filter.")
+        } else {
+          message("Debug - heatmap_data(): Filtering for Top X concepts: ", paste(top_concepts, collapse = ", "))
+          
+          # Ensure conceptLabel has no NAs before filtering
+          df_result <- df_result %>% filter(!is.na(conceptLabel) & conceptLabel %in% top_concepts)
+          message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ", nrow(df_result))
         }
-        
-        # Apply the conceptLabel order to the heatmap data
-        heatmap_data_complete$conceptLabel <- factor(heatmap_data_complete$conceptLabel, levels = unique(c(
-          ordered_conceptLabels, heatmap_data_complete$conceptLabel
-        )))
-        
-        return(heatmap_data_complete)
+      }
+      return(df_result)  # ✅ Return df_result instead of modifying df
       }
     }
   })
-  
-  # session$userData$heatmap_data <- reactive({
-  # 
-  #   session$userData$plot_data() %...>% {
-  #     # Resolve bar_data() BEFORE using it
-  #     
-  #     df <- .
-  # 
-  #     # Group and summarize
-  #     df <- df %>%
-  #       group_by(conceptLabel, Period) %>%
-  #       summarise(Counts = n(), .groups = 'drop')
-  #     message("Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ", nrow(df))
-  # 
-  #     # Ensure all periods are represented
-  #     full_periods <- expand.grid(
-  #       conceptLabel = unique(df$conceptLabel),
-  #       Period = levels(factor(df$Period))
-  #     )
-  #     message("Debug - heatmap_data(): Created full period grid with ", nrow(full_periods), " rows.")
-  # 
-  #     df <- full_periods %>%
-  #       left_join(df, by = c("conceptLabel", "Period")) %>%
-  #       mutate(Counts = ifelse(is.na(Counts), 0, Counts))
-  #     message("Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ", nrow(df))
-  # 
-  #     # Initialize df_result
-  #     df_result <- df
-  # 
-  #     # Resolve bar_data() BEFORE using it
-  #     session$userData$bar_data() %...>% {
-  #       bar_df <- .
-  # 
-  #     if (is.null(bar_df) || nrow(bar_df) == 0) {
-  #       message("Warning - heatmap_data(): bar_data() is NULL or empty, skipping Top X filter.")
-  #     } else {
-  #       message("Debug - heatmap_data(): bar_data() has ", nrow(bar_df), " rows.")
-  # 
-  #       # Extract top concept labels and remove NAs
-  #       top_concepts <- unique(bar_df$conceptLabel)
-  #       top_concepts <- top_concepts[!is.na(top_concepts)]  # Remove any NA values
-  # 
-  #       if (length(top_concepts) == 0) {
-  #         message("Warning - heatmap_data(): No valid top concepts found, skipping filter.")
-  #       } else {
-  #         message("Debug - heatmap_data(): Filtering for Top X concepts: ", paste(top_concepts, collapse = ", "))
-  # 
-  #         # Ensure conceptLabel has no NAs before filtering
-  #         df_result <- df_result %>% filter(!is.na(conceptLabel) & conceptLabel %in% top_concepts)
-  #         message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ", nrow(df_result))
-  #       }
-  #     }
-  #     return(df_result)  # ✅ Return df_result instead of modifying df
-  #     }
-  #   }
-  # })
   
 
   
