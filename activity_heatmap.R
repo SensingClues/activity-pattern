@@ -27,6 +27,7 @@
 ## [] Include box that allows to insert method of observation
 ## [] Visualise numbers in the bar graph and heatmap
 ## [] Include server side of methods
+## [] Include relative counts
 
 ## Set up libraries
 library(pacman)
@@ -71,24 +72,18 @@ ui <- fluidPage(
                    choices = c("Hourly" = "hourly", "Monthly" = "monthly", "Seasonal" = "season")),
       numericInput("topX", "Number of rows to display:", value = 10, min = 1, step = 1),  # User input for top X
       radioButtons("method", "Select method of observation:",  # period one wants to look at
-                   choices = c("Cameratrap" = "cameratrap", "Animal sighting" = "animal sighting", "Other" = "other")),
+                   choices = c("Cameratrap" = "cameratrap", "Animal sighting" = "animal sighting", "Sensor" = "sensor","Other" = "other")),
       conditionalPanel( # only display if input is season
         condition = "input.time_input == 'season'", 
         numericInput("num_seasons", "Number of Seasons:", value = 1, min = 1), # select how many seasons you expect
         uiOutput("season_inputs"), # placeholder that reacts to server side
       )
     ),
-    conditionalPanel( # only display if input is season
-      condition = "input.method == 'other'", 
-      numericInput("num_methods", "Number of methods:", value = 1, min = 1), # select how many seasons you expect
-      uiOutput("Methods"), # placeholder that reacts to server side --> need to include server side still
-    )
-  ),
     mainPanel(
       plotlyOutput("combined_plot")
     )
   )
-
+)
 
 server <- function(input, output, session) {
   
@@ -114,6 +109,7 @@ server <- function(input, output, session) {
     seasons
   })  
   
+
   #  Filter data based on year
   filtered_data <- reactive({
     if (input$selected_year == "All") {
@@ -201,23 +197,24 @@ server <- function(input, output, session) {
       ordered_species, heatmap_data_complete$conceptLabel
     )))
     
-    # Bar graph with summarised counts
-    bar_chart <- plot_ly(
-      bar_data,
-      x = ~ Counts,
-      y = ~ conceptLabel,
-      type = 'bar',
-      orientation = 'h',
-      marker = list(
-        color = 'rgba(50, 171, 96, 0.6)',
-        line = list(color = 'rgba(50, 171, 96, 1.0)', width = 1)
-      )
-    ) %>%
-      layout(
-        title = 'Total Counts per Species and Time Period',
-        xaxis = list(title = 'Counts'),
-        yaxis = list(title = 'Species', categoryorder = "total ascending")
-      )
+  bar_chart <- plot_ly(
+  bar_data,
+  x = ~ Counts,
+  y = ~ conceptLabel,
+  type = 'bar',
+  orientation = 'h',
+  text = ~ Counts,  # Add text for counts on bars
+  textposition = 'outside',  # Position the text outside the bars
+  marker = list(
+    color = 'rgba(50, 171, 96, 0.6)',
+    line = list(color = 'rgba(50, 171, 96, 1.0)', width = 1)
+  )
+) %>%
+  layout(
+    title = 'Total Counts per Species and Time Period',
+    xaxis = list(title = 'Counts'),
+    yaxis = list(title = 'Species', categoryorder = "total ascending")
+  )
     
     # Now use heatmap_data_complete for your heatmap plot
     heatmap <- plot_ly(
@@ -225,6 +222,10 @@ server <- function(input, output, session) {
       x = ~ Period,
       y = ~ conceptLabel,
       z = ~ Counts,
+      text = ~ Counts,
+      texttemplate = "%{text}",  # Display the text values within the cells
+      hoverinfo = 'text',  # Show text when hovering over a cell
+      colorbar = list(title = 'Counts'),  # Optional: label for color scale
       type = 'heatmap',
       colorscale = 'Greens',
       showscale = TRUE,
