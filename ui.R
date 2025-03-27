@@ -95,7 +95,7 @@ ui <- fluidPage(
       tabPanel("Observation Analysis", 
                sidebarLayout(
                  sidebarPanel(
-                   selectInput("selected_year", "Select Year:", choices = c("All")),  
+                   selectInput("selected_year", "Select Year:", choices = c("All")),   # --> think I need to rewrite to ui output
                    radioButtons("time_input", "Select time period:", 
                                  choices = c("Hourly" = "hourly", "Monthly" = "monthly", "Seasonal" = "season"), 
                                  selected = "hourly"),  # Set a default value

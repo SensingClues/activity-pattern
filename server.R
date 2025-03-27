@@ -3,7 +3,9 @@
 ## Date: 22-03-2025
 ## Description:
 ## To-Do:
-## [] selectInput to observeEvent
+## [] Year filter drop down doesnt work yet
+## [] method selection does not work
+## [] Make top filter as part of graph? And include that you can also look at the bottom
 
 options(shiny.reactlog = TRUE)
 
@@ -334,59 +336,6 @@ server <- function(input, output, session) {
     }
   })
   
-  ## DONT NEED? -- no maps
-  # # build layer of interest selection box 
-  # output$SelectLayer <- renderUI({
-  #   message("Render layer select box")
-  #   if (session$userData$authenticated) {
-  #     choices <- c(i18n$t("labels.outsideArea") , sort(unlist(session$userData$layers$layerName)))
-  #     # render box if we have groups else do nothing
-  #     if (length(choices) != 0) {
-  #       message(paste0("Render select layer for ", session$userData$clueyUser, " with layers ", paste(choices, collapse = " ")))
-  #       selectInput("LayerList",
-  #                   i18n$t("labels.selectArea"),
-  #                   choices = choices,
-  #                   multiple = FALSE,
-  #                   selected = session$userData$selectedLayer
-  #       )
-  #     } # no choices
-  #     
-  #   } # not authenticated
-  # })
-  # 
-  # 
-  # ### observe layer select box
-  # observeEvent(input$LayerList, {
-  #   req(input$ok)
-  #   message("Observe event on Layer selectbox")
-  #   session$userData$selectedLayer <- input$LayerList
-  #   
-  #   if (session$userData$selectedLayer != i18n$t("labels.outsideArea")) {
-  #     message(paste(" Layer ", session$userData$selectedLayer, " selected"))
-  #     lrs <- session$userData$layers %>% filter(layerName == session$userData$selectedLayer)
-  #     # get list of geojson multipolygons
-  #     f <- sensingcluesr::get_layer_features(projectId = lrs$pid,
-  #                                            layerId = lrs$lid,
-  #                                            cookie = session$userData$cookie_mt,
-  #                                            url = session$userData$url)
-  #     # now we need to label the observations by layer
-  #     # we expect the observations to be available
-  #     # this needs to be an sf object
-  #     session$userData$my_sf <- reactive({f})
-  #     
-  #     
-  #   } else {
-  #     # no layer so nothing to do
-  #     message("LAYER EMPTY")
-  #   }
-  #   
-  #   # invalidate the current data
-  #   #session$userData$obsDataAvailable <- FALSE
-  #   #message("Invalidating data as new group selected")
-  #   
-  # },
-  # ignoreInit = TRUE)
-  
   
   # Get the date range based on user input and get the groups for which data is available in the date range
   observeEvent(input$DateRange, {
@@ -456,7 +405,7 @@ server <- function(input, output, session) {
       textInput(inputId = paste0("season_", i), label = paste("Season", i, "(e.g., '12,1,2' for Dec-Jan-Feb):"), value = "") 
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
-  message(paste0())
+  
   # Reactive expression to parse user-defined seasons
   user_defined_seasons <- reactive({ 
     req(input$num_seasons)
@@ -471,7 +420,7 @@ server <- function(input, output, session) {
     seasons
   })  
   
-  # -- New inputs end 
+  # -- New inputs end  -- 
   
   # -- TREE FOR SELECTION OF DATA SUBSETS ---
   
@@ -739,7 +688,7 @@ server <- function(input, output, session) {
     }
   })
   
-  ## MAKE EXPORT DATA --> REMOVED THE TAB , INCLUDE LATER AGAIN
+  ## MAKE EXPORT DATA 
   
   session$userData$exportData <- reactive({
     session$userData$processed_obsdata() %...>% {
@@ -806,36 +755,37 @@ server <- function(input, output, session) {
       }
     }
   )
-  ## Translate data to session logic
-  # Reactive to get processed data
   
-  # # RINCLUDE YEAR FILTER HERE
+  ## --  HEATMAP AND BAR GRAPH TAB --  code from hanna
+  
+  # Prepare data
+  
+  # Filter dataset based on year of observation
   session$userData$filtered_data <- reactive({
-    session$userData$processed_obsdata() %...>% { df <- .
-
-    # Debugging messages
-    message("Debug: df has ", nrow(df), " rows")
-
-    # Apply the year filter if selected_year is not "All"
-    if (input$selected_year != "All") {
-      df <- df %>% filter(format(when, "%Y") == input$selected_year)
+    session$userData$processed_obsdata() %...>% {
+      df <- .
+      
+      # Debugging messages
+      message("Debug: Year filtered dataframe has ", nrow(df), " rows")
+      
+      # Apply the year filter if selected_year is not "All"
+      if (input$selected_year != "All") {
+        df <- df %>% filter(format(when, "%Y") == input$selected_year)
+      }
+      
+      return(df)  # Return the filtered dataframe
     }
-
-    return(df)  # Return the filtered dataframe
-    }}
-  )
+  })
   
   
-  # WORKS TILL HERE 
-  
-session$userData$plot_data <- reactive({
-    time_input <- input$time_input
-    seasons <- user_defined_seasons()
+  # make df that includes period as factor variable and assigns it appropriate levels
+  session$userData$plot_data <- reactive({
+    time_input <- input$time_input #user selected observation period
+    seasons <- user_defined_seasons() #seasons defined by user input
     
-    message("Debug - plot_data(): Waiting for filtered_data()")
     
-    session$userData$filtered_data() %...>% { 
-      df <- . 
+    session$userData$filtered_data() %...>% {
+      df <- .
       
       df <- df %>%
         mutate(
@@ -843,278 +793,299 @@ session$userData$plot_data <- reactive({
             time_input == "hourly"  ~ format(when, "%H"),
             time_input == "monthly" ~ format(when, "%m"),
             time_input == "season"  ~ purrr::map_chr(format(when, "%m"), function(month) {
-              season <- names(seasons)[sapply(seasons, function(s) month %in% s)]
-              if (length(season) > 0) season else NA_character_
+              season <- names(seasons)[sapply(seasons, function(s)
+                month %in% s)]
+              if (length(season) > 0)
+                season
+              else
+                NA_character_
             }),
             TRUE ~ NA_character_
           )
         )
-
-      message("Debug - plot_data(): Applied Period transformation.")
       
       # Ensure factor levels for Period
       if (time_input == "hourly") {
-          df$Period <- factor(df$Period, levels = sprintf("%02d", 0:23), labels = paste0(sprintf("%02d", 0:23), "h"))
+        df$Period <- factor(df$Period,
+                            levels = sprintf("%02d", 0:23),
+                            labels = paste0(sprintf("%02d", 0:23), "h")) #0-24 h 
       } else if (time_input == "monthly") {
-          df$Period <- factor(df$Period, levels = sprintf("%02d", 1:12), labels = month.abb)
+        df$Period <- factor(df$Period,
+                            levels = sprintf("%02d", 1:12),
+                            labels = month.abb) # month abbreviations
       } else if (time_input == "season") {
-          df$Period <- factor(df$Period, levels = names(seasons))
+        df$Period <- factor(df$Period, levels = names(seasons)) # defined earlier
       }
       
-      message("Debug - plot_data(): Assigned factor levels for Period.")
-      message("Debug - plot_data(): Returning transformed dataframe with ", nrow(df), " rows.")
-      
-      return(df)
+      return(df) 
     }
   })
-
   
-  ## Bar data for visualization
+  message("Debug - plot_data(): Periods were added.")
+  
+  ## Use the plotting data to create dataframes for bar graphs as well as heatmap 
+  
+  # bar graph data transformation
   session$userData$bar_data <- reactive({
     session$userData$plot_data() %...>% {
       df <- .
       
-      # Perform transformations
+      #  Summarise data based on conceptlabel
       df <- df %>%
         group_by(conceptLabel) %>%
         summarise(Counts = n(), .groups = 'drop')
+      
       message(paste(
         "Debug - bar_data(): Bar data transformation complete with",
         nrow(df),
         "rows."
       ))
       
-      df  # Return the transformed data frame
+      # Apply top X row filter
+      topX <- input$topX
+      if (topX > 0) {
+        df <- df %>% 
+          top_n(topX, Counts) %>% 
+          arrange(desc(Counts))
+      }
+      
+      # Order species according to frequency of detection for the bar chart
+      ordered_species <- df %>%
+        arrange(Counts) %>% 
+        pull(conceptLabel) 
+      
+      return(list(df = df, ordered_species = ordered_species))
     }
   })
   
-  session$userData$bar_data <- reactive({
-    session$userData$plot_data() %...>% { 
-      df <- .
-      
-      # Group data by conceptLabel to generate bar_data
-      bar_df <- df %>%
-        group_by(conceptLabel) %>%
-        summarise(Counts = n(), .groups = 'drop')
 
-    }
-  })
-
+  # heatmap data transformation
   session$userData$heatmap_data <- reactive({
-    session$userData$plot_data() %...>% { 
+    session$userData$plot_data() %...>% {
       df <- .
-      message("Debug - heatmap_data(): Resolving plot_data. Initial rows: ", nrow(df))
-      
-      # Ensure required columns exist before proceeding
-      required_cols <- c("conceptLabel", "Period")
-      missing_cols <- setdiff(required_cols, colnames(df))
-      if (length(missing_cols) > 0) {
-        message("Error - heatmap_data(): Missing required columns: ", paste(missing_cols, collapse = ", "))
-        return(data.frame())  # Return an empty dataframe to avoid crashes
-      }
       
       # Group and summarize
       df <- df %>%
         group_by(conceptLabel, Period) %>%
         summarise(Counts = n(), .groups = 'drop')
-      message("Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ", nrow(df))
       
-      # Ensure all periods are represented
+      message(
+        "Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ",
+        nrow(df)
+      )
+      
+      # Ensure Period is an ordered factor AGAIN to avoid issues
+      df$Period <- factor(df$Period, levels = levels(df$Period))
+      
       full_periods <- expand.grid(
         conceptLabel = unique(df$conceptLabel),
-        Period = levels(factor(df$Period))
+        Period = levels(df$Period),
+        # Explicitly use levels
+        stringsAsFactors = FALSE
       )
-      message("Debug - heatmap_data(): Created full period grid with ", nrow(full_periods), " rows.")
       
-      df <- full_periods %>%
+      message(
+        "Debug - heatmap_data(): Created full period grid with ",
+        nrow(full_periods),
+        " rows."
+      )
+      
+      df_result <- full_periods %>%
         left_join(df, by = c("conceptLabel", "Period")) %>%
-        mutate(Counts = ifelse(is.na(Counts), 0, Counts))
-      message("Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ", nrow(df))
+        mutate(Counts = ifelse(is.na(Counts), 0, Counts))  # Ensure missing counts are filled with 0
       
-      # Initialize df_result
-      df_result <- df
+      message(
+        "Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ",
+        nrow(df_result)
+      )
       
-      # Resolve bar_data() BEFORE using it
-      session$userData$bar_data() %...>% { bar_df <- .
-      
-      if (is.null(bar_df) || nrow(bar_df) == 0) {
-        message("Warning - heatmap_data(): bar_data() is NULL or empty, skipping Top X filter.")
-      } else {
-        message("Debug - heatmap_data(): bar_data() has ", nrow(bar_df), " rows.")
+      # Use bar data for ordering the heatmap data
+      session$userData$bar_data() %...>% {
+        bar_data_list <- .
+        bar_df <- bar_data_list$df
+        ordered_species <- bar_data_list$ordered_species
         
-        # Extract top concept labels and remove NAs
-        top_concepts <- unique(bar_df$conceptLabel)
-        top_concepts <- top_concepts[!is.na(top_concepts)]  # Remove any NA values
-        
-        if (length(top_concepts) == 0) {
-          message("Warning - heatmap_data(): No valid top concepts found, skipping filter.")
-        } else {
-          message("Debug - heatmap_data(): Filtering for Top X concepts: ", paste(top_concepts, collapse = ", "))
-          
-          # Ensure conceptLabel has no NAs before filtering
-          df_result <- df_result %>% filter(!is.na(conceptLabel) & conceptLabel %in% top_concepts)
-          message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ", nrow(df_result))
+        # Apply top X filter to heatmap data
+        if (input$topX > 0) {
+          df_result <- df_result %>%
+            filter(conceptLabel %in% bar_df$conceptLabel)
         }
-      }
-      return(df_result)  # ✅ Return df_result instead of modifying df
+        
+        # Ensure conceptLabel is ordered correctly --> needed to do that again otherwise it didnt take the factors correctly
+        df_result$conceptLabel <- factor(df_result$conceptLabel, levels = ordered_species)
+        df_result$Period <- factor(df_result$Period, levels = levels(df$Period))
+        message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ",
+                nrow(df_result))
+        
+        return(df_result)  
       }
     }
   })
   
-
+  
+  ## --- MAIN OUTPUT ------
   
   output$combined_plot <- renderPlotly({
-    
-    # Resolve bar_data and heatmap_data asynchronously
-    session$userData$bar_data() %...>% { bar_data_df <- .
-    session$userData$heatmap_data() %...>% { heatmap_data_df <- .
-    
-    # Validate resolved data
-    if (is.null(bar_data_df) || nrow(bar_data_df) == 0) {
-      message("Error - combined_plot(): bar_data_df is NULL or empty!")
-      return(NULL)
+    # Resolve bar_data and heatmap_data otherwise plotly doesnt work
+    session$userData$bar_data() %...>% {
+      bar_data_df <- .
+      bar_data_df <- bar_data_df$df # 
+      
+      session$userData$heatmap_data() %...>% {
+        heatmap_data_df <- .
+        
+        
+        # Create bar chart
+        bar_chart <- plot_ly(
+          data = bar_data_df,
+          x = ~ Counts,
+          y = ~ conceptLabel,
+          type = 'bar',
+          orientation = 'h',
+          text = ~ Counts,
+          textposition = 'outside',
+          marker = list(
+            color = 'rgba(50, 171, 96, 0.6)',
+            line = list(color = 'rgba(50, 171, 96, 1.0)', width = 1)
+          )
+        ) %>%
+          layout(
+            title = 'Total Counts per Species and Time Period',
+            xaxis = list(title = 'Counts'),
+            yaxis = list(title = 'Species', categoryorder = "total ascending")
+          )
+        
+        # Create heatmap
+        heatmap <- plot_ly(
+          data = heatmap_data_df,
+          x = ~ Period,
+          y = ~ conceptLabel,
+          z = ~ Counts,
+          text = ~ Counts,
+          texttemplate = "%{text}",
+          hoverinfo = 'text',
+          colorbar = list(title = 'Counts'),
+          type = 'heatmap',
+          colorscale = 'Greens',
+          showscale = TRUE,
+          reversescale = TRUE
+        ) %>%
+          layout(
+            title = 'Counts per Species',
+            xaxis = list(title = 'Time Period'),
+            yaxis = list(title = 'Species')
+          )
+        
+        # Combine the plots
+        subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
+          layout(title = 'Activity Pattern')
+      }
     }
-    if (is.null(heatmap_data_df) || nrow(heatmap_data_df) == 0) {
-      message("Error - combined_plot(): heatmap_data_df is NULL or empty!")
-      return(NULL)
-    }
-    
-    # Order species based on bar chart counts
-    ordered_species <- bar_data_df %>% arrange(Counts) %>% pull(conceptLabel)
-    
-    # Reorder factor levels in heatmap
-    heatmap_data_df$conceptLabel <- factor(
-      heatmap_data_df$conceptLabel,
-      levels = unique(c(ordered_species, heatmap_data_df$conceptLabel))
-    )
-    
-    # Create bar chart
-    bar_chart <- plot_ly(
-      data = bar_data_df,
-      x = ~ Counts,
-      y = ~ conceptLabel,
-      type = 'bar',
-      orientation = 'h',
-      text = ~ Counts,
-      textposition = 'outside',
-      marker = list(
-        color = 'rgba(50, 171, 96, 0.6)',
-        line = list(color = 'rgba(50, 171, 96, 1.0)', width = 1)
-      )
-    ) %>%
-      layout(
-        title = 'Total Counts per Species and Time Period',
-        xaxis = list(title = 'Counts'),
-        yaxis = list(title = 'Species', categoryorder = "total ascending")
-      )
-    
-    # Create heatmap
-    heatmap <- plot_ly(
-      data = heatmap_data_df,
-      x = ~ Period,
-      y = ~ conceptLabel,
-      z = ~ Counts,
-      text = ~ Counts,
-      texttemplate = "%{text}",
-      hoverinfo = 'text',
-      colorbar = list(title = 'Counts'),
-      type = 'heatmap',
-      colorscale = 'Greens',
-      showscale = TRUE,
-      reversescale = TRUE
-    ) %>%
-      layout(
-        title = 'Counts per Species',
-        xaxis = list(title = 'Time Period'),
-        yaxis = list(title = 'Species')
-      )
-    
-    # Combine the plots
-    subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
-      layout(title = 'Activity Pattern')
-    }}
-  })  
+  })
   
   
   
-  # ### TAB RAW CONCEPTS
-  # 
-  # # make container for displaying hover text for column headings
-  # RawConceptsHovertext <- htmltools::withTags(table(
-  #   class = "display",
-  #   thead(
-  #     tr(
-  #       th("", title = "labels.rowNr"),
-  #       th(i18n$t("columns.Concept"), title = i18n$t("labels.nameOfConcept")),
-  #       th(i18n$t("columns.when"), title = i18n$t("labels.dateAndLocalTime")),
-  #       th(i18n$t("columns.Agent"), title = i18n$t("labels.nameObservingAgent")),
-  #       th(i18n$t("columns.observationId"), title = i18n$t("labels.idNumber")),
-  #       th(i18n$t("columns.ObservationType"), title = i18n$t("labels.catOfObs")),
-  #       th(i18n$t("columns.latitude"), title = i18n$t("labels.WGS84Lat")),
-  #       th(i18n$t("columns.longitude"), title = i18n$t("labels.WGS84Lon"))
-  #     )
-  #   )
-  # ))
-  # 
-  # # Raw concept table
-  # output$tableRawConcepts <- DT::renderDataTable({
-  #   message("Rendering raw concept table")
-  #   # req(session$userData$processed_obsdata)
-  # 
-  #   session$userData$processed_obsdata() %...>% {
-  #     df <- .
-  # 
-  #     # convert POSIXct to character that includes timezone, for datatable
-  #     df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
-  # 
-  #     df <- df %>%
-  #       select(conceptLabel, when, agentName, observationId, observationType, lat, lon)
-  #     # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
-  # 
-  #     DT::datatable(df, container = RawConceptsHovertext,
-  #                   extensions = "Buttons",
-  #                   options = list(
-  #                     language = list(url = paste0('//cdn.datatables.net/plug-ins/1.10.11/i18n/',session$userData$lang_long,'.json')),
-  #                     paging = TRUE,
-  #                     searching = TRUE,
-  #                     fixedColumns = TRUE,
-  #                     autoWidth = TRUE,
-  #                     ordering = TRUE,
-  #                     dom = 'frtip<"sep">B', #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
-  #                     pageLength = 999,
-  #                     buttons = list(
-  #                       list(
-  #                         extend = "copy",
-  #                         text = i18n$t("commands.copy")
-  #                       ),
-  #                       list(
-  #                         extend = "csv",
-  #                         text = i18n$t("commands.csv")
-  #                       ))
-  #                   )
-  #     ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
-  #   }
-  # }) # end output tableRawConcepts
-  # 
-  # 
-  # ### TAB RAW OBSERVATIONS
-  # 
-  # # Raw observation table
-  # output$tableRawObservations <- DT::renderDataTable({
-  #   message("Rendering raw observation table")
-  # 
-  #   session$userData$exportData_withColnames () %...>% {
-  #     df <- .
-  # 
-  #     # colnr <- which(names(df) == i18n$t("columns.timestamp")) # need for formatDate/toLocaleString
-  #     show_DT_table(df, session$userData$lang_long, i18n$t("commands.copy"), i18n$t("commands.csv"))
-  #     # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
-  # 
-  #   }
-  # }) # end output tableRawObservations
-  
-  
-
+  ### TAB RAW CONCEPTS
+  observeEvent(input$GetData, {
+    # make container for displaying hover text for column headings
+    RawConceptsHovertext <- htmltools::withTags(table(class = "display", thead(tr(
+      th("", title = "labels.rowNr"),
+      th(
+        i18n$t("columns.Concept"),
+        title = i18n$t("labels.nameOfConcept")
+      ),
+      th(
+        i18n$t("columns.when"),
+        title = i18n$t("labels.dateAndLocalTime")
+      ),
+      th(
+        i18n$t("columns.Agent"),
+        title = i18n$t("labels.nameObservingAgent")
+      ),
+      th(
+        i18n$t("columns.observationId"),
+        title = i18n$t("labels.idNumber")
+      ),
+      th(
+        i18n$t("columns.ObservationType"),
+        title = i18n$t("labels.catOfObs")
+      ),
+      th(i18n$t("columns.latitude"), title = i18n$t("labels.WGS84Lat")),
+      th(i18n$t("columns.longitude"), title = i18n$t("labels.WGS84Lon"))
+    ))))
     
+    # Raw concept table
+    output$tableRawConcepts <- DT::renderDataTable({
+      message("Rendering raw concept table")
+      # req(session$userData$processed_obsdata)
+      
+      session$userData$processed_obsdata() %...>% {
+        df <- .
+        
+        # convert POSIXct to character that includes timezone, for datatable
+        df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
+        
+        df <- df %>%
+          select(conceptLabel,
+                 when,
+                 agentName,
+                 observationId,
+                 observationType,
+                 lat,
+                 lon)
+        # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
+        
+        DT::datatable(
+          df,
+          container = RawConceptsHovertext,
+          extensions = "Buttons",
+          options = list(
+            language = list(
+              url = paste0(
+                '//cdn.datatables.net/plug-ins/1.10.11/i18n/',
+                session$userData$lang_long,
+                '.json'
+              )
+            ),
+            paging = TRUE,
+            searching = TRUE,
+            fixedColumns = TRUE,
+            autoWidth = TRUE,
+            ordering = TRUE,
+            dom = 'frtip<"sep">B',
+            #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
+            pageLength = 999,
+            buttons = list(
+              list(extend = "copy", text = i18n$t("commands.copy")),
+              list(extend = "csv", text = i18n$t("commands.csv"))
+            )
+          )
+        ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
+      }
+    }) # end output tableRawConcepts
+    
+    
+    ### TAB RAW OBSERVATIONS
+    
+    # Raw observation table
+    output$tableRawObservations <- DT::renderDataTable({
+      message("Rendering raw observation table")
+      
+      session$userData$exportData_withColnames () %...>% {
+        df <- .
+        
+        # colnr <- which(names(df) == i18n$t("columns.timestamp")) # need for formatDate/toLocaleString
+        show_DT_table(
+          df,
+          session$userData$lang_long,
+          i18n$t("commands.copy"),
+          i18n$t("commands.csv")
+        )
+        # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
+        
+      }
+    }) # end output tableRawObservations
+  })
+  
 }
   
