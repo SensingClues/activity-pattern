@@ -81,7 +81,8 @@ ui <- fluidPage(
       br()
     ),
     
-    mainPanel(      
+    mainPanel( 
+      width = 9,
       tags$head(
         tags$style(HTML("
           .sep {

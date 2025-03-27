@@ -670,6 +670,11 @@ server <- function(input, output, session) {
         # Animal = Animal sighting
         # HWC = Human Wildlife Conflict
         # Infrastructure = Point of interest
+        
+        ##
+        years <- unique(format(df$when, "%Y"))
+        updateSelectInput(session, "selected_year", choices = c("All", years), selected = "All")
+        
         df <- df %>%
           mutate(observationType = recode(observationType, 
                                           community = i18n$t("labels.communityWork"),
@@ -756,27 +761,27 @@ server <- function(input, output, session) {
     }
   )
   
-  ## --  HEATMAP AND BAR GRAPH TAB --  code from hanna
+  ## --  HEATMAP AND BAR GRAPH TAB --  code from hanna1
   
-  # Prepare data
-  
+
   # Filter dataset based on year of observation
   session$userData$filtered_data <- reactive({
     session$userData$processed_obsdata() %...>% {
       df <- .
-      
+
       # Debugging messages
       message("Debug: Year filtered dataframe has ", nrow(df), " rows")
-      
+
       # Apply the year filter if selected_year is not "All"
       if (input$selected_year != "All") {
         df <- df %>% filter(format(when, "%Y") == input$selected_year)
       }
-      
+
       return(df)  # Return the filtered dataframe
     }
   })
-  
+
+
   
   # make df that includes period as factor variable and assigns it appropriate levels
   session$userData$plot_data <- reactive({
