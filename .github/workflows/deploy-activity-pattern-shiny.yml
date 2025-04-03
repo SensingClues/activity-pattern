@@ -29,5 +29,5 @@ jobs:
       - name: Sync files to the Shiny Server directory
         run: |
           mkdir -p ${{ env.shiny-path }}
-          rsync -av --delete ./repo/shiny-app/ ${{ env.shiny-path }}
+          rsync -av --delete ./repo/ ${{ env.shiny-path }}
           touch ${{ env.shiny-path }}/restart.txt
