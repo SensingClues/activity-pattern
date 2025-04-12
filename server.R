@@ -3,9 +3,8 @@
 ## Date: 22-03-2025
 ## Description:
 ## To-Do:
-## [] Year filter drop down doesnt work yet
 ## [] method selection does not work
-## [] Make top filter as part of graph? And include that you can also look at the bottom
+
 
 options(shiny.reactlog = TRUE)
 
@@ -402,7 +401,7 @@ server <- function(input, output, session) {
   output$season_inputs <- renderUI({
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
-      textInput(inputId = paste0("season_", i), label = paste("Season", i, "(e.g., '12,1,2' for Dec-Jan-Feb):"), value = "") 
+      textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "") 
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
   
@@ -672,8 +671,6 @@ server <- function(input, output, session) {
         # Infrastructure = Point of interest
         
         ##
-        years <- unique(format(df$when, "%Y"))
-        updateSelectInput(session, "selected_year", choices = c("All", years), selected = "All")
         
         df <- df %>%
           mutate(observationType = recode(observationType, 
@@ -764,18 +761,13 @@ server <- function(input, output, session) {
   ## --  HEATMAP AND BAR GRAPH TAB --  code from hanna1
   
 
-  # Filter dataset based on year of observation
+  # Filter dataset based on year of observation -- filtered_data now unnecessary
   session$userData$filtered_data <- reactive({
     session$userData$processed_obsdata() %...>% {
       df <- .
 
       # Debugging messages
       message("Debug: Year filtered dataframe has ", nrow(df), " rows")
-
-      # Apply the year filter if selected_year is not "All"
-      if (input$selected_year != "All") {
-        df <- df %>% filter(format(when, "%Y") == input$selected_year)
-      }
 
       return(df)  # Return the filtered dataframe
     }
