@@ -768,11 +768,6 @@ server <- function(input, output, session) {
       # Debugging messages
       message("Debug: Year filtered dataframe has ", nrow(df), " rows")
       
-      # Apply the year filter if selected_year is not "All"
-      if (input$selected_year != "All") {
-        df <- df %>% filter(format(when, "%Y") == input$selected_year)
-      }
-      
       return(df)  # Return the filtered dataframe
     }
   })
