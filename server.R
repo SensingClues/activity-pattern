@@ -456,8 +456,41 @@ server <- function(input, output, session) {
       top_nodes <- sapply(session$userData$tree$children, function(x) x$name)
       cw_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/6477"
       tr_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/42"
+      rm11_node<- "https://sensingclues.poolparty.biz/SCCSSOntology/62"
+      rm12_node<- "https://sensingclues.poolparty.biz/SCCSSOntology/1911"
+      
       if (cw_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(cw_node))}
       if (tr_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(tr_node))}
+      if (rm11_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm11_node))}
+      if (rm12_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm12_node))}
+      
+
+      # Access the top-level nodes
+      top_children <- session$userData$tree$children
+      
+      # Loop over top-level nodes to access their second-level children
+      for (parent in top_children) {
+        # Access second-level children of the current parent node
+        second_level_children <- parent$children
+        
+        # Check if the parent has any second-level children
+        if (!is.null(second_level_children)) {
+          # Extract the names of second-level children
+          obs_nodes <- sapply(second_level_children, function(x) x$name)
+          
+          # Define nodes to remove
+          rm13_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/89"
+          rm14_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/106"
+          rm15_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/461"
+          
+          # Remove second-level children from the current parent node
+          if (rm13_node %in% obs_nodes) { invisible(parent$RemoveChild(rm13_node)) }
+          if (rm14_node %in% obs_nodes) { invisible(parent$RemoveChild(rm14_node)) }
+          if (rm15_node %in% obs_nodes) { invisible(parent$RemoveChild(rm15_node)) }
+        }
+      }
+      
+
       if (length(session$userData$tree$children) == 0) {session$userData$tree <- list()}
       jsonTree <- shinyTree::treeToJSON(session$userData$tree, pretty = TRUE, createNewId = FALSE)
       enable_all(c("DateRange", "GroupListDiv", "GetData"))

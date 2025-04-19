@@ -61,10 +61,11 @@ build_tree_from_concepts <- function(concepts, counts) {
   for (i in 1:length(concepts)) {
     dfn <- rbind(dfn, c(concepts[[i]]$id, concepts[[i]]$parent, concepts[[i]]$label))
   } 
+  
   names(dfn) <- c("from", "to", "label")
   # filter concepts to only the base ontology
   dfn <- dfn %>% filter(grepl("SCCSSOntology", from))
-  
+  message(print(dfn))
   tree <- FromDataFrameNetwork(dfn, check = "check")
   trav <- Traverse(tree)
   trav_name <- Get(trav, "name")
@@ -80,7 +81,7 @@ build_tree_from_concepts <- function(concepts, counts) {
   df_counts <- bind_rows(dfs)
   # order df according to traverse sequence
   f <- df_counts[match(trav_name, df_counts$X_value), "frequency"]
-  
+
   # set new attribute
   tree$Set(freq = f)
   
