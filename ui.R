@@ -133,15 +133,13 @@ ui <- fluidPage(
               selected = "hourly"  # Default selection
             ),
             selectInput(
-              inputId = "method",
-              label = i18n$t("Observation method"),
+              inputId = "agg_method",
+              label = i18n$t("Aggregation method"),
               choices = list(
-                "Cameratrap" = "cameratrap",
-                "Animal sighting" = "animal sighting",
-                "Sensor" = "sensor",
-                "Other" = "other" # DONT HARDCODE IN FUTURE BUT BASE IT ON DATA!!!!!!!!!
+                "Counts" = "counts",
+                "Percentage" = "percentage"
               ),
-              selected = "Cameratrap"  # Default selection
+              selected = "Counts"  # Default selection
             ),
             numericInput(
               "topX",

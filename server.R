@@ -793,7 +793,7 @@ server <- function(input, output, session) {
   
   # Prepare data
   
-  # Filter dataset based on year of observation
+  # Filter dataset based on year of observation --> remove later
   session$userData$filtered_data <- reactive({
     session$userData$processed_obsdata() %...>% {
       df <- .
@@ -888,6 +888,7 @@ server <- function(input, output, session) {
   
 
   # heatmap data transformation
+   # include proper if else
   session$userData$heatmap_data <- reactive({
     session$userData$plot_data() %...>% {
       df <- .
@@ -897,35 +898,37 @@ server <- function(input, output, session) {
         group_by(conceptLabel, Period) %>%
         summarise(Counts = n(), .groups = 'drop')
       
-      message(
-        "Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ",
-        nrow(df)
-      )
-      
       # Ensure Period is an ordered factor AGAIN to avoid issues
       df$Period <- factor(df$Period, levels = levels(df$Period))
       
+      # Create full grid of conceptLabel x Period
       full_periods <- expand.grid(
         conceptLabel = unique(df$conceptLabel),
         Period = levels(df$Period),
-        # Explicitly use levels
         stringsAsFactors = FALSE
       )
       
-      message(
-        "Debug - heatmap_data(): Created full period grid with ",
-        nrow(full_periods),
-        " rows."
-      )
+      message("Debug - heatmap_data(): Created full period grid with ", nrow(full_periods), " rows.")
       
+      # Fill missing combinations with 0 counts
       df_result <- full_periods %>%
         left_join(df, by = c("conceptLabel", "Period")) %>%
-        mutate(Counts = ifelse(is.na(Counts), 0, Counts))  # Ensure missing counts are filled with 0
+        mutate(Counts = ifelse(is.na(Counts), 0, Counts))
       
-      message(
-        "Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ",
-        nrow(df_result)
-      )
+      message("Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ",
+              nrow(df_result))
+      
+      # Now calculate percentages if needed
+      if (input$agg_method == "percentage") {
+        df_totals <- df_result %>%
+          group_by(conceptLabel) %>%
+          summarise(Total_Count = sum(Counts), .groups = 'drop')
+        
+        df_result <- df_result %>%
+          left_join(df_totals, by = "conceptLabel") %>%
+          mutate(Percentage = ifelse(Total_Count > 0, (Counts / Total_Count) * 100, 0))
+        message("Percentage calculated")
+      }
       
       # Use bar data for ordering the heatmap data
       session$userData$bar_data() %...>% {
@@ -939,16 +942,18 @@ server <- function(input, output, session) {
             filter(conceptLabel %in% bar_df$conceptLabel)
         }
         
-        # Ensure conceptLabel is ordered correctly --> needed to do that again otherwise it didnt take the factors correctly
+        # Ensure conceptLabel is ordered correctly
         df_result$conceptLabel <- factor(df_result$conceptLabel, levels = ordered_species)
         df_result$Period <- factor(df_result$Period, levels = levels(df$Period))
+        
         message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ",
                 nrow(df_result))
         
-        return(df_result)  
+        return(df_result)
       }
     }
   })
+  
   
   
   ## --- MAIN OUTPUT ------
@@ -962,11 +967,11 @@ server <- function(input, output, session) {
       session$userData$heatmap_data() %...>% {
         heatmap_data_df <- .
         
-        
+        #ifelse(input$method != "cameratrap", ~Counts,~Percentage)
         # Create bar chart
         bar_chart <- plot_ly(
           data = bar_data_df,
-          x = ~ Counts,
+          x = ~Counts ,
           y = ~ conceptLabel,
           type = 'bar',
           orientation = 'h',
@@ -983,26 +988,42 @@ server <- function(input, output, session) {
             yaxis = list(title = 'Species', categoryorder = "total ascending")
           )
         
+        # Create heatmap 
+        # Heatmap needs to be reactive
+        # Select z and text data for heatmap
+        if (input$agg_method == "percentage") {
+          z_data <- heatmap_data_df$Percentage
+          text_data <- heatmap_data_df$Percentage
+          colorbar_title <- "Percentage"
+          plot_title <- "Relative fractions (%) per species"
+        } else {
+          z_data <- heatmap_data_df$Counts
+          text_data <- heatmap_data_df$Counts
+          colorbar_title <- "Counts"
+          plot_title <- "Counts per Species"
+        }
+        
         # Create heatmap
         heatmap <- plot_ly(
           data = heatmap_data_df,
-          x = ~ Period,
-          y = ~ conceptLabel,
-          z = ~ Counts,
-          text = ~ Counts,
+          x = ~Period,
+          y = ~conceptLabel,
+          z = z_data,
+          text = text_data,
           texttemplate = "%{text}",
           hoverinfo = 'text',
-          colorbar = list(title = 'Counts'),
+          colorbar = list(title = colorbar_title),
           type = 'heatmap',
           colorscale = 'Greens',
           showscale = TRUE,
           reversescale = TRUE
         ) %>%
           layout(
-            title = 'Counts per Species',
+            title = plot_title,
             xaxis = list(title = 'Time Period'),
             yaxis = list(title = 'Species')
           )
+        
         
         # Combine the plots
         subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%

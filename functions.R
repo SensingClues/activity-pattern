@@ -65,7 +65,7 @@ build_tree_from_concepts <- function(concepts, counts) {
   names(dfn) <- c("from", "to", "label")
   # filter concepts to only the base ontology
   dfn <- dfn %>% filter(grepl("SCCSSOntology", from))
-  message(print(dfn))
+
   tree <- FromDataFrameNetwork(dfn, check = "check")
   trav <- Traverse(tree)
   trav_name <- Get(trav, "name")
