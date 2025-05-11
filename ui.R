@@ -132,22 +132,6 @@ ui <- fluidPage(
               ),
               selected = "hourly"  # Default selection
             ),
-            selectInput(
-              inputId = "agg_method",
-              label = i18n$t("Aggregation method"),
-              choices = list(
-                "Counts" = "counts",
-                "Percentage" = "percentage"
-              ),
-              selected = "Counts"  # Default selection
-            ),
-            numericInput(
-              "topX",
-              "Top rows:",
-              value = 10,
-              min = 1,
-              step = 1
-            ),
             div(
               style = "display: flex; align-items: center; gap: 10px;",
               conditionalPanel(
@@ -173,18 +157,49 @@ ui <- fluidPage(
         )
         ),
         fluidRow(
-          column(12, plotlyOutput("combined_plot"))))), tabPanel(i18n$t("labels.rawConceptsTab"), fluidRow(column(
-            12, DT::dataTableOutput("tableRawConcepts")
-          )), 
-          div(
-            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-            add_busy_spinner(
-              spin = "fading-circle",
-              width = "100px",
-              height = "100px"
-            )
-          )
+      column(
+        width = 9,  # Plot takes 75% width
+        plotlyOutput("combined_plot")
+      ),
+      column(
+        width = 3,  # Inputs take 25% width
+        div(
+          style = "display: flex; flex-direction: column; gap: 15px;",
+          radioButtons(
+            inputId = "agg_method",
+            label = i18n$t(""),
+            choices = list(
+              "Counts" = "counts",
+              "Percentage" = "percentage"
+            ),
+            selected = "Counts"
           ),
+          numericInput(
+            inputId = "topX",
+            label = "Top rows:",
+            value = 10,
+            min = 1,
+            step = 1
+          )
+        )
+      )
+    )
+  )
+),
+tabPanel(
+  i18n$t("labels.rawConceptsTab"),
+  fluidRow(column(
+    12, DT::dataTableOutput("tableRawConcepts")
+  )),
+  div(
+    style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+    add_busy_spinner(
+      spin = "fading-circle",
+      width = "100px",
+      height = "100px"
+    )
+  )
+), 
         
         # endpanel
         

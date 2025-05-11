@@ -402,7 +402,7 @@ server <- function(input, output, session) {
   output$season_inputs <- renderUI({
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
-      textInput(inputId = paste0("season_", i), label = paste("Season", i, "(e.g., '12,1,2' for Dec-Jan-Feb):"), value = "") 
+      textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "") 
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
   

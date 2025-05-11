@@ -68,6 +68,7 @@ write.csv(obs_df, file ="C:/Users/hanna/Documents/africa_demo.csv")
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
+      uiOutput("year_selector")
       selectInput("selected_year", "Select Year:", choices = c("All", unique(format(obs_df$when, "%Y")))),  # choices from all years in data
       radioButtons("time_input", "Select time period:",  # period one wants to look at
                    choices = c("Hourly" = "hourly", "Monthly" = "monthly", "Seasonal" = "season")),
