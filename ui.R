@@ -137,69 +137,79 @@ ui <- fluidPage(
               conditionalPanel(
                 condition = "input.time_input == 'season'",
                 div(
-                  numericInput(
-                    "num_seasons", 
-                    "# Seasons:",
-                    value = 1,
-                    min = 1
+                  style = "display: flex; align-items: center; gap: 20px;",
+                  
+                  # First input: num_seasons
+                  div(
+                    numericInput(
+                      "num_seasons", 
+                      "# Seasons:",
+                      value = 1,
+                      min = 1
+                    ),
+                    bsTooltip(
+                      "num_seasons", 
+                      "Select the number of seasons for analysis. Input the calendar month number to specify season. (1 = January, 2 = February, etc.)", 
+                      placement = "right", 
+                      options = list(container = "body")
+                    )
                   ),
-                  bsTooltip(
-                    "num_seasons", 
-                    "Select the number of seasons for analysis. Input the calendar month number to specify season. (1 = January, 2 = February, etc.)", 
-                    placement = "right", 
-                    options = list(container = "body")
+                  
+                  # Second input: uiOutput for dynamic season inputs
+                  div(
+                    uiOutput("season_inputs")
                   )
-                ),
-                uiOutput("season_inputs")  # Now inside the conditionalPanel
+                )
               )
             )
           )
         )
         ),
         fluidRow(
-      column(
-        width = 9,  # Plot takes 75% width
-        plotlyOutput("combined_plot")
-      ),
-      column(
-        width = 3,  # Inputs take 25% width
-        div(
-          style = "display: flex; flex-direction: column; gap: 15px;",
-          radioButtons(
-            inputId = "agg_method",
-            label = i18n$t(""),
-            choices = list(
-              "Counts" = "counts",
-              "Percentage" = "percentage"
-            ),
-            selected = "Counts"
+          column(
+            width = 9,  # Plot takes 75% width
+            plotlyOutput("combined_plot")
           ),
-          numericInput(
-            inputId = "topX",
-            label = "Top rows:",
-            value = 10,
-            min = 1,
-            step = 1
+          column(
+            width = 3,  # Inputs take 25% width
+            div(
+              style = "display: flex; flex-direction: column; gap: 15px;",
+              radioButtons(
+                inputId = "agg_method",
+                label = i18n$t(""),
+                choices = list(
+                  "Counts" = "counts",
+                  "Percentage" = "percentage"
+                ),
+                selected = "counts"
+              ),
+              numericInput(
+                inputId = "topX",
+                label = "Top rows:",
+                value = 10,
+                min = 1,
+                step = 1
+              ),
+              downloadButton("download_plotly", "Download Combined Plot (PNG)")
+            )
           )
         )
-      )
-    )
-  )
-),
-tabPanel(
-  i18n$t("labels.rawConceptsTab"),
-  fluidRow(column(
-    12, DT::dataTableOutput("tableRawConcepts")
-  )),
-  div(
-    style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-    add_busy_spinner(
-      spin = "fading-circle",
-      width = "100px",
-      height = "100px"
-    )
-  )
-), 
+        )
+        ),
+        tabPanel(
+          i18n$t("labels.rawConceptsTab"),
+          fluidRow(column(
+            12, DT::dataTableOutput("tableRawConcepts")
+          )),
+          div(
+            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+            add_busy_spinner(
+              spin = "fading-circle",
+              width = "100px",
+              height = "100px"
+            )
+          )
+        ), 
         
         # endpanel
         
@@ -225,4 +235,3 @@ tabPanel(
     )
   )
 )
-

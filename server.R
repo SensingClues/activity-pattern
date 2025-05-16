@@ -958,24 +958,21 @@ server <- function(input, output, session) {
   
   ## --- MAIN OUTPUT ------
   
-  output$combined_plot <- renderPlotly({
-    # Resolve bar_data and heatmap_data otherwise plotly doesnt work
+  # Shared function to generate combined plot
+  combined_plot_fn <- reactive({
     session$userData$bar_data() %...>% {
-      bar_data_df <- .
-      bar_data_df <- bar_data_df$df # 
-      
+      bar_data_df <- .; bar_data_df <- bar_data_df$df
       session$userData$heatmap_data() %...>% {
         heatmap_data_df <- .
         
-        #ifelse(input$method != "cameratrap", ~Counts,~Percentage)
-        # Create bar chart
+        # Bar chart
         bar_chart <- plot_ly(
           data = bar_data_df,
-          x = ~Counts ,
-          y = ~ conceptLabel,
+          x = ~Counts,
+          y = ~conceptLabel,
           type = 'bar',
           orientation = 'h',
-          text = ~ Counts,
+          text = ~Counts,
           textposition = 'outside',
           marker = list(
             color = 'rgba(50, 171, 96, 0.6)',
@@ -988,9 +985,7 @@ server <- function(input, output, session) {
             yaxis = list(title = 'Species', categoryorder = "total ascending")
           )
         
-        # Create heatmap 
-        # Heatmap needs to be reactive
-        # Select z and text data for heatmap
+        # Heatmap
         if (input$agg_method == "percentage") {
           z_data <- heatmap_data_df$Percentage
           text_data <- heatmap_data_df$Percentage
@@ -1003,7 +998,6 @@ server <- function(input, output, session) {
           plot_title <- "Counts per Species"
         }
         
-        # Create heatmap
         heatmap <- plot_ly(
           data = heatmap_data_df,
           x = ~Period,
@@ -1024,15 +1018,30 @@ server <- function(input, output, session) {
             yaxis = list(title = 'Species')
           )
         
-        
-        # Combine the plots
+        # Combine
         subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
           layout(title = 'Activity Pattern')
       }
     }
   })
   
-  
+  # Render the plot
+  output$combined_plot <- renderPlotly({
+    combined_plot_fn()
+  })
+  # 
+  # # Download handler
+  # output$download_plotly <- downloadHandler(
+  #   filename = function() {
+  #     paste("combined_plot", Sys.Date(), ".png", sep = "")
+  #   },
+  #   content = function(file) {
+  #     plot <- combined_plot_fn()
+  #     
+  #     # Save as PNG
+  #     plotly::save_image(plot, file = file, format = "png", width = 1200, height = 600, scale = 1)
+  #   }
+  # )
   
   ### TAB RAW CONCEPTS
   observeEvent(input$GetData, {
