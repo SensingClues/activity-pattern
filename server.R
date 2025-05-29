@@ -399,10 +399,14 @@ server <- function(input, output, session) {
   # -- New inputs - Hanna
   
   # Generate input fields per season dynamically based on number of seasons user desires
+  # Generate input fields per season dynamically based on number of seasons user desires
   output$season_inputs <- renderUI({
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
-      textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "") 
+      # Wrap each textInput in a div with styling for horizontal layout and reduced width
+      div(style = "display: inline-block; width: 75px; margin-right: 10px;", # Adjust width and margin as needed
+          textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "")
+      )
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
   
@@ -1015,12 +1019,11 @@ server <- function(input, output, session) {
           layout(
             title = plot_title,
             xaxis = list(title = 'Time Period'),
-            yaxis = list(title = 'Species')
+            yaxis = list(title = '', showticklabels = FALSE) 
           )
         
         # Combine
-        subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
-          layout(title = 'Activity Pattern')
+        subplot(bar_chart, heatmap, nrows = 1, margin = 0.05)
       }
     }
   })
@@ -1029,20 +1032,34 @@ server <- function(input, output, session) {
   output$combined_plot <- renderPlotly({
     combined_plot_fn()
   })
-  # 
-  # # Download handler
-  # output$download_plotly <- downloadHandler(
-  #   filename = function() {
-  #     paste("combined_plot", Sys.Date(), ".png", sep = "")
-  #   },
-  #   content = function(file) {
-  #     plot <- combined_plot_fn()
-  #     
-  #     # Save as PNG
-  #     plotly::save_image(plot, file = file, format = "png", width = 1200, height = 600, scale = 1)
-  #   }
-  # )
+  # Use a reactiveVal to cache the final plot
+  plot_cache <- reactiveVal(NULL)
   
+  # Save the completed plot to cache whenever it's re-rendered
+  observeEvent(combined_plot_fn(), {
+    combined_plot_fn() %...>% plot_cache()
+  })
+  
+  # Render the plot from the reactive (unchanged)
+  output$combined_plot <- renderPlotly({
+    combined_plot_fn()
+  })
+  
+  # Download handler
+  output$download_plotly <- downloadHandler(
+    filename = function() {
+      paste("combined_plot", ".html", sep = "")
+    },
+    content = function(file) {
+      p <- plot_cache()
+      if (is.null(p)) {
+        stop("Plot is not yet ready for download.")
+      }
+      
+      saveWidget(as_widget(p), file)
+    }
+  )
+
   ### TAB RAW CONCEPTS
   observeEvent(input$GetData, {
     # make container for displaying hover text for column headings

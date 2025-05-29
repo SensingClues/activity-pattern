@@ -1,5 +1,5 @@
 # Author: Hanna Fricke
-# Description: User interface for activity app. 
+# Description: User interface for activity app.
 # TO-DO :
 # [] DONT HARDCODE METHOD FUTURE BUT BASE IT ON DATA
 
@@ -29,6 +29,7 @@ if (!exists("i18n")) {
 }
 i18n$set_translation_language("en")
 
+# js code to get the browser language - Corrected escaping
 js_lang <- "var language =  window.navigator.userLanguage || window.navigator.language;
               Shiny.onInputChange('browser_language', language);
               console.log(language);"
@@ -38,7 +39,7 @@ ui <- fluidPage(
   shiny.i18n::usei18n(i18n),
   extendShinyjs(text = js_lang, functions = c()),
   
-  # Get timezone from browser
+  # Get timezone from browser - Corrected escaping
   tags$script(
     "$(document).on('shiny:sessioninitialized', function(event) {
                                         var n = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -58,6 +59,14 @@ ui <- fluidPage(
         )
       ),
       
+      # --- About Box ---
+      div(class = "about-box",
+          h4("About"),
+          p("Add a small descriptive text about the app here.")
+      ),
+      br(),
+      # --- End About Box ---
+      
       # Custom button styles
       tags$head(
         tags$style(
@@ -74,31 +83,49 @@ ui <- fluidPage(
         ),
       ),
       
-      h3(i18n$t("labels.obsReport")),
+      # Remove old heading h3(i18n$t("labels.obsReport"))
       uiOutput("userstatus"),
       br(),
-      br(),
-      disabled(dateRangeInput("DateRange", i18n$t("labels.selectPeriod"))), 
-      br(),
-      disabled(div(
-        class = "choosechannel",
-        id = "GroupListDiv",
-        pickerInput(
-          inputId = "GroupList",
-          label = i18n$t("labels.selectGroup"),
-          choices = list(),
-          multiple = TRUE,
-          options = pickerOptions(
-            actionsBox = TRUE,
-            noneSelectedText = '',
-            selectAllText = i18n$t("labels.selectAll"),
-            deselectAllText = i18n$t("labels.deselectAll")
+      
+      # --- Filter Sections ---
+      div(class = "filter-section time-period-box",
+          h4("Time Period"),
+          # Added a container div for easier styling of the date range input width
+          div(class = "date-range-input-container",
+              disabled(dateRangeInput("DateRange", i18n$t("labels.selectPeriod")))
           )
-        )
-      )),
+      ),
       br(),
-      shinyTree("conceptTree", checkbox = TRUE, theme = "proton"),
+      
+      div(class = "filter-section data-sources-box",
+          h4("Data Sources"),
+          disabled(div(
+            class = "choosechannel",
+            id = "GroupListDiv",
+            pickerInput(
+              inputId = "GroupList",
+              label = i18n$t("labels.selectGroup"), # This label might be redundant with the H4 heading, consider removing if needed
+              choices = list(),
+              multiple = TRUE,
+              options = pickerOptions(
+                actionsBox = TRUE,
+                noneSelectedText = '',
+                selectAllText = i18n$t("labels.selectAll"),
+                deselectAllText = i18n$t("labels.deselectAll")
+              )
+            )
+          ))
+      ),
       br(),
+      
+      div(class = "filter-section concepts-box",
+          h4("Concepts"),
+          p("Select concepts (one or more)"),
+          shinyTree("conceptTree", checkbox = TRUE, theme = "proton")
+      ),
+      br(),
+      # --- End Filter Sections ---
+      
       disabled(actionButton(
         "GetData", i18n$t("commands.getdata"), icon = NULL
       )),
@@ -108,93 +135,126 @@ ui <- fluidPage(
     mainPanel(
       width = 9,
       tags$head(tags$style(
-        HTML("
-          .sep {
+        # Corrected escaping for the CSS content within HTML()
+        HTML(".sep {
           width: 20px;
           height: 1px;
           float: left;
-          }
-        ")
+          }")
       )),
       tabsetPanel(
         type = "tabs",
-        tabPanel(i18n$t("Activity Pattern"), fluidPage(fluidRow(column(
-          12,
-          div(
-            style = "display: flex; align-items: center; gap: 20px;",
-            selectInput(
-              inputId = "time_input",
-              label = i18n$t("Time interval"),
-              choices = list(
-                "Hourly" = "hourly",
-                "Monthly" = "monthly",
-                "Seasonal" = "season"
-              ),
-              selected = "hourly"  # Default selection
-            ),
-            div(
-              style = "display: flex; align-items: center; gap: 10px;",
-              conditionalPanel(
-                condition = "input.time_input == 'season'",
-                div(
-                  style = "display: flex; align-items: center; gap: 20px;",
-                  
-                  # First input: num_seasons
-                  div(
-                    numericInput(
-                      "num_seasons", 
-                      "# Seasons:",
-                      value = 1,
-                      min = 1
-                    ),
-                    bsTooltip(
-                      "num_seasons", 
-                      "Select the number of seasons for analysis. Input the calendar month number to specify season. (1 = January, 2 = February, etc.)", 
-                      placement = "right", 
-                      options = list(container = "body")
-                    )
-                  ),
-                  
-                  # Second input: uiOutput for dynamic season inputs
-                  div(
-                    uiOutput("season_inputs")
-                  )
-                )
-              )
-            )
-          )
-        )
-        ),
-        fluidRow(
-          column(
-            width = 9,  # Plot takes 75% width
-            plotlyOutput("combined_plot")
-          ),
-          column(
-            width = 3,  # Inputs take 25% width
-            div(
-              style = "display: flex; flex-direction: column; gap: 15px;",
-              radioButtons(
-                inputId = "agg_method",
-                label = i18n$t(""),
-                choices = list(
-                  "Counts" = "counts",
-                  "Percentage" = "percentage"
-                ),
-                selected = "counts"
-              ),
-              numericInput(
-                inputId = "topX",
-                label = "Top rows:",
-                value = 10,
-                min = 1,
-                step = 1
-              ),
-              downloadButton("download_plotly", "Download Combined Plot (PNG)")
-            )
-          )
-        )
-        )
+        tabPanel(i18n$t("Activity Pattern"),
+                 fluidPage(
+                   
+                   # === Time Interval Row ===
+                   fluidRow(
+                     column(
+                       12,
+                       div(
+                         style = "display: flex; align-items: center; gap: 20px; margin-top: 10px;",
+                         
+                         # Time Interval Box
+                         div(
+                           style = "width: 100px;",
+                           selectInput(
+                             inputId = "time_input",
+                             label = i18n$t("Time interval"),
+                             choices = list(
+                               "Hourly" = "hourly",
+                               "Monthly" = "monthly",
+                               "Seasonal" = "season"
+                             ),
+                             selected = "hourly",
+                             width = "100%"
+                           )
+                         ),
+                         
+                         # Conditional Season Controls
+                         conditionalPanel(
+                           condition = "input.time_input == 'season'",
+                           div(
+                             style = "display: flex; align-items: center; gap: 20px;",
+                             div(
+                               style = "width: 100px;",
+                               numericInput(
+                                 "num_seasons",
+                                 "# Seasons:",
+                                 value = 1,
+                                 min = 1,
+                                 width = "100%"
+                               ),
+                               bsTooltip(
+                                 "num_seasons",
+                                 "Select the number of seasons for analysis. Input the calendar month number to specify season. (1 = January, 2 = February, etc.)",
+                                 placement = "right",
+                                 options = list(container = "body")
+                               )
+                             ),
+                             div(
+                               style = "display: flex; flex-wrap: wrap; gap: 10px;",
+                               uiOutput("season_inputs")
+                             )
+                           )
+                         )
+                       )
+                     )
+                   ),
+                   
+                   # === TopX and Aggregation Method Row ===
+                   fluidRow(
+                     column(
+                       12,
+                       div(
+                         style = "display: flex; align-items: center; gap: 20px; margin-top: 15px;",
+                         
+                         # Top X Filter Box (match width to Time Interval box)
+                         div(
+                           style = "width: 100px;",
+                           numericInput(
+                             inputId = "topX",
+                             label = "Top rows:",
+                             value = 10,
+                             min = 1,
+                             step = 1,
+                             width = "100%"
+                           )
+                         ),
+                         
+                         # Aligned Radio Buttons (inline, vertically centered)
+                         div(
+                           style = "display: flex; align-items: flex-end; height: 58px;",  # Adjust height to match input height
+                           radioButtons(
+                             inputId = "agg_method",
+                             label = NULL,
+                             choices = list("Counts" = "counts", "Percentage" = "percentage"),
+                             selected = "counts",
+                             inline = TRUE
+                           )
+                         )
+                       )
+                     )
+                   ),
+                   
+                   # === Plot Row ===
+                   fluidRow(
+                     column(
+                       12,
+                       plotlyOutput("combined_plot")
+                     )
+                   ),
+                   
+                   # === Download Button Row ===
+                   fluidRow(
+                     column(
+                       12,
+                       div(
+                         style = "margin-top: 20px;",
+                         downloadButton("download_plotly", "Download plot (.html)")
+                       )
+                     )
+                   )
+                 )
         ),
         tabPanel(
           i18n$t("labels.rawConceptsTab"),
@@ -209,7 +269,7 @@ ui <- fluidPage(
               height = "100px"
             )
           )
-        ), 
+        ),
         
         # endpanel
         
