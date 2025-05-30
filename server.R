@@ -399,7 +399,6 @@ server <- function(input, output, session) {
   # -- New inputs - Hanna
   
   # Generate input fields per season dynamically based on number of seasons user desires
-  # Generate input fields per season dynamically based on number of seasons user desires
   output$season_inputs <- renderUI({
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
@@ -969,6 +968,12 @@ server <- function(input, output, session) {
       session$userData$heatmap_data() %...>% {
         heatmap_data_df <- .
         
+        # Calculate max count for dynamic axis range
+        max_count <- max(bar_data_df$Counts, na.rm = TRUE)
+        
+        # Use 10% buffer or just add 20 units if scale is small
+        xaxis_range <- c(0, max_count + max_count * 1.1)  # or max_count * 1.1 for percentage padding
+        
         # Bar chart
         bar_chart <- plot_ly(
           data = bar_data_df,
@@ -985,21 +990,33 @@ server <- function(input, output, session) {
         ) %>%
           layout(
             title = 'Total Counts per Species and Time Period',
-            xaxis = list(title = 'Counts'),
-            yaxis = list(title = 'Species', categoryorder = "total ascending")
+            xaxis = list(
+              title = 'Counts',
+              range = xaxis_range
+            ),
+            yaxis = list(
+              title = 'Species',
+              categoryorder = "total ascending"
+            ),
+            margin = list(r = 5),
+            cliponaxis = FALSE
           )
         
         # Heatmap
         if (input$agg_method == "percentage") {
           z_data <- heatmap_data_df$Percentage
-          text_data <- heatmap_data_df$Percentage
+          text_data <- round(heatmap_data_df$Percentage)
           colorbar_title <- "Percentage"
           plot_title <- "Relative fractions (%) per species"
+          zmin <- 0
+          zmax <- 100
         } else {
           z_data <- heatmap_data_df$Counts
           text_data <- heatmap_data_df$Counts
           colorbar_title <- "Counts"
           plot_title <- "Counts per Species"
+          zmin <- min(bar_data_df$Counts, na.rm = TRUE)
+          zmax <- ceiling(max_count/ 10) * 10
         }
         
         heatmap <- plot_ly(
@@ -1007,6 +1024,8 @@ server <- function(input, output, session) {
           x = ~Period,
           y = ~conceptLabel,
           z = z_data,
+          zmin = zmin,
+          zmax= zmax,
           text = text_data,
           texttemplate = "%{text}",
           hoverinfo = 'text',
