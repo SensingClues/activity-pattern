@@ -61,10 +61,11 @@ build_tree_from_concepts <- function(concepts, counts) {
   for (i in 1:length(concepts)) {
     dfn <- rbind(dfn, c(concepts[[i]]$id, concepts[[i]]$parent, concepts[[i]]$label))
   } 
+  
   names(dfn) <- c("from", "to", "label")
   # filter concepts to only the base ontology
   dfn <- dfn %>% filter(grepl("SCCSSOntology", from))
-  
+
   tree <- FromDataFrameNetwork(dfn, check = "check")
   trav <- Traverse(tree)
   trav_name <- Get(trav, "name")
@@ -80,7 +81,7 @@ build_tree_from_concepts <- function(concepts, counts) {
   df_counts <- bind_rows(dfs)
   # order df according to traverse sequence
   f <- df_counts[match(trav_name, df_counts$X_value), "frequency"]
-  
+
   # set new attribute
   tree$Set(freq = f)
   
@@ -95,75 +96,8 @@ build_tree_from_concepts <- function(concepts, counts) {
   stateLeafs <- list(opened = TRUE, selected = TRUE)
   nLeafs <- tree$leafCount
   tree$Set(state = rep(list(stateLeafs), nLeafs), filterFun = isLeaf)
-  # seems impossible to have tree opened and selected from tree.data object
-  #stateNotLeafs <- list(opened = TRUE)
-  #tree$Set(state = rep(list(stateNotLeafs),length(tree)-nLeafs), filterFun = isNotLeaf)
-  # "state": {
-  #   "opened": true,
-  #   "disabled": false,
-  #   "selected": false,
-  #   "loaded": false
-  # }
-  #tree$Do(function(node) node$state = list(opened = TRUE, disabled = FALSE, selected = TRUE, loaded = FALSE))
-  
-  #tree = lapply(tree, function(x) structure(x, stopened = T))
-  
   return(tree)
 }
-
-
-# -----------------------------------------------------------------------------
-# OBSERVATIONS
-# -----------------------------------------------------------------------------
-
-## EVENTUALLY CONVERT PLOT INTO A FUNCTION
-
-
-# -----------------------------------------------------------------------------
-# INTERSECTION
-# -----------------------------------------------------------------------------
-
-# # check which observations are in which layers
-# intersect_observations_to_layers <- function(layer, obs) {
-#   # per feature
-#   for (i in 1:nrow(layer)){
-#     # json
-#     # name is in properties
-#     #j <- unlist(f[[i]])
-#     f01 <- layer[i,]
-#     
-#     label <- f01$NAME
-#     
-#     # make sure coordinate systems are the same
-#     # we actually overwrite the features crs so this could be wrong...
-#     f01 <- st_set_crs(f01, st_crs(obs))
-#     # drop z dimension
-#     f01 <- st_zm(f01)
-#     # seems most MULTIPOLYGONS are POLYGONS at the lower level
-#     f01 <- st_make_valid(f01)
-#     
-#     # f01$geometry <- f01$geometry %>%
-#     #   s2::s2_rebuild() %>%
-#     #   sf::st_as_sfc()
-#     
-#     # check which points intersect with polygon
-#     tryCatch({
-#       # do not use s2
-#       sf::sf_use_s2(FALSE)
-#       lst <- st_intersects(obs, f01, sparse = FALSE)
-#       message(paste("LAYER ", label, " is OK"))
-#       sf::sf_use_s2(TRUE)
-#       # fill in the name for these points 
-#       if (sum(lst) > 0) {
-#         obs[lst,]$area <- label
-#       }
-#     }, 
-#     #error
-#     error = function(cond) message(paste("LAYER ", label, " has issues"))
-#     ) #tryCatch
-#   }
-#   return(obs)
-# }
 
 
 # -----------------------------------------------------------------------------

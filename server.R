@@ -401,7 +401,11 @@ server <- function(input, output, session) {
   output$season_inputs <- renderUI({
     req(input$num_seasons) # required input before going further
     lapply(1:input$num_seasons, function(i) {
-      textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "") 
+      # Wrap each textInput in a div with styling for horizontal layout and reduced width
+      div(style = "display: inline-block; width: 75px; margin-right: 10px;", # Adjust width and margin as needed
+          textInput(inputId = paste0("season_", i), label = paste("Season", i), value = "")
+      )
+      
     }) # loop through number of seasons and add suffix (e.g. 2 seasons = season_1, season_2)
   })
   
@@ -455,8 +459,41 @@ server <- function(input, output, session) {
       top_nodes <- sapply(session$userData$tree$children, function(x) x$name)
       cw_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/6477"
       tr_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/42"
+      rm11_node<- "https://sensingclues.poolparty.biz/SCCSSOntology/62"
+      rm12_node<- "https://sensingclues.poolparty.biz/SCCSSOntology/1911"
+      
       if (cw_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(cw_node))}
       if (tr_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(tr_node))}
+      if (rm11_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm11_node))}
+      if (rm12_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm12_node))}
+      
+
+      # Access the top-level nodes
+      top_children <- session$userData$tree$children
+      
+      # Loop over top-level nodes to access their second-level children
+      for (parent in top_children) {
+        # Access second-level children of the current parent node
+        second_level_children <- parent$children
+        
+        # Check if the parent has any second-level children
+        if (!is.null(second_level_children)) {
+          # Extract the names of second-level children
+          obs_nodes <- sapply(second_level_children, function(x) x$name)
+          
+          # Define nodes to remove
+          rm13_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/89"
+          rm14_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/106"
+          rm15_node <- "https://sensingclues.poolparty.biz/SCCSSOntology/461"
+          
+          # Remove second-level children from the current parent node
+          if (rm13_node %in% obs_nodes) { invisible(parent$RemoveChild(rm13_node)) }
+          if (rm14_node %in% obs_nodes) { invisible(parent$RemoveChild(rm14_node)) }
+          if (rm15_node %in% obs_nodes) { invisible(parent$RemoveChild(rm15_node)) }
+        }
+      }
+      
+
       if (length(session$userData$tree$children) == 0) {session$userData$tree <- list()}
       jsonTree <- shinyTree::treeToJSON(session$userData$tree, pretty = TRUE, createNewId = FALSE)
       enable_all(c("DateRange", "GroupListDiv", "GetData"))
@@ -761,14 +798,17 @@ server <- function(input, output, session) {
   ## --  HEATMAP AND BAR GRAPH TAB --  code from hanna1
   
 
-  # Filter dataset based on year of observation -- filtered_data now unnecessary
+  # Prepare data
+  
+  # Filter dataset based on year of observation --> remove later
+
   session$userData$filtered_data <- reactive({
     session$userData$processed_obsdata() %...>% {
       df <- .
 
       # Debugging messages
       message("Debug: Year filtered dataframe has ", nrow(df), " rows")
-
+      
       return(df)  # Return the filtered dataframe
     }
   })
@@ -857,6 +897,7 @@ server <- function(input, output, session) {
   
 
   # heatmap data transformation
+   # include proper if else
   session$userData$heatmap_data <- reactive({
     session$userData$plot_data() %...>% {
       df <- .
@@ -866,35 +907,37 @@ server <- function(input, output, session) {
         group_by(conceptLabel, Period) %>%
         summarise(Counts = n(), .groups = 'drop')
       
-      message(
-        "Debug - heatmap_data(): Grouped and summarized data. Rows after grouping: ",
-        nrow(df)
-      )
-      
       # Ensure Period is an ordered factor AGAIN to avoid issues
       df$Period <- factor(df$Period, levels = levels(df$Period))
       
+      # Create full grid of conceptLabel x Period
       full_periods <- expand.grid(
         conceptLabel = unique(df$conceptLabel),
         Period = levels(df$Period),
-        # Explicitly use levels
         stringsAsFactors = FALSE
       )
       
-      message(
-        "Debug - heatmap_data(): Created full period grid with ",
-        nrow(full_periods),
-        " rows."
-      )
+      message("Debug - heatmap_data(): Created full period grid with ", nrow(full_periods), " rows.")
       
+      # Fill missing combinations with 0 counts
       df_result <- full_periods %>%
         left_join(df, by = c("conceptLabel", "Period")) %>%
-        mutate(Counts = ifelse(is.na(Counts), 0, Counts))  # Ensure missing counts are filled with 0
+        mutate(Counts = ifelse(is.na(Counts), 0, Counts))
       
-      message(
-        "Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ",
-        nrow(df_result)
-      )
+      message("Debug - heatmap_data(): Applied full periods and resolved missing values. Rows after merging: ",
+              nrow(df_result))
+      
+      # Now calculate percentages if needed
+      if (input$agg_method == "percentage") {
+        df_totals <- df_result %>%
+          group_by(conceptLabel) %>%
+          summarise(Total_Count = sum(Counts), .groups = 'drop')
+        
+        df_result <- df_result %>%
+          left_join(df_totals, by = "conceptLabel") %>%
+          mutate(Percentage = ifelse(Total_Count > 0, (Counts / Total_Count) * 100, 0))
+        message("Percentage calculated")
+      }
       
       # Use bar data for ordering the heatmap data
       session$userData$bar_data() %...>% {
@@ -908,38 +951,43 @@ server <- function(input, output, session) {
             filter(conceptLabel %in% bar_df$conceptLabel)
         }
         
-        # Ensure conceptLabel is ordered correctly --> needed to do that again otherwise it didnt take the factors correctly
+        # Ensure conceptLabel is ordered correctly
         df_result$conceptLabel <- factor(df_result$conceptLabel, levels = ordered_species)
         df_result$Period <- factor(df_result$Period, levels = levels(df$Period))
+        
         message("Debug - heatmap_data(): Applied Top X filter. Rows remaining: ",
                 nrow(df_result))
         
-        return(df_result)  
+        return(df_result)
       }
     }
   })
   
   
+  
   ## --- MAIN OUTPUT ------
   
-  output$combined_plot <- renderPlotly({
-    # Resolve bar_data and heatmap_data otherwise plotly doesnt work
+  # Shared function to generate combined plot
+  combined_plot_fn <- reactive({
     session$userData$bar_data() %...>% {
-      bar_data_df <- .
-      bar_data_df <- bar_data_df$df # 
-      
+      bar_data_df <- .; bar_data_df <- bar_data_df$df
       session$userData$heatmap_data() %...>% {
         heatmap_data_df <- .
         
+        # Calculate max count for dynamic axis range
+        max_count <- max(bar_data_df$Counts, na.rm = TRUE)
         
-        # Create bar chart
+        # Use 10% buffer or just add 20 units if scale is small
+        xaxis_range <- c(0, max_count + max_count * 1.1)  # or max_count * 1.1 for percentage padding
+        
+        # Bar chart
         bar_chart <- plot_ly(
           data = bar_data_df,
-          x = ~ Counts,
-          y = ~ conceptLabel,
+          x = ~Counts,
+          y = ~conceptLabel,
           type = 'bar',
           orientation = 'h',
-          text = ~ Counts,
+          text = ~Counts,
           textposition = 'outside',
           marker = list(
             color = 'rgba(50, 171, 96, 0.6)',
@@ -948,40 +996,95 @@ server <- function(input, output, session) {
         ) %>%
           layout(
             title = 'Total Counts per Species and Time Period',
-            xaxis = list(title = 'Counts'),
-            yaxis = list(title = 'Species', categoryorder = "total ascending")
+            xaxis = list(
+              title = 'Counts',
+              range = xaxis_range
+            ),
+            yaxis = list(
+              title = 'Species',
+              categoryorder = "total ascending"
+            ),
+            margin = list(r = 5),
+            cliponaxis = FALSE
           )
         
-        # Create heatmap
+        # Heatmap
+        if (input$agg_method == "percentage") {
+          z_data <- heatmap_data_df$Percentage
+          text_data <- round(heatmap_data_df$Percentage)
+          colorbar_title <- "Percentage"
+          plot_title <- "Relative fractions (%) per species"
+          zmin <- 0
+          zmax <- 100
+        } else {
+          z_data <- heatmap_data_df$Counts
+          text_data <- heatmap_data_df$Counts
+          colorbar_title <- "Counts"
+          plot_title <- "Counts per Species"
+          zmin <- min(bar_data_df$Counts, na.rm = TRUE)
+          zmax <- ceiling(max_count/ 10) * 10
+        }
+        
         heatmap <- plot_ly(
           data = heatmap_data_df,
-          x = ~ Period,
-          y = ~ conceptLabel,
-          z = ~ Counts,
-          text = ~ Counts,
+          x = ~Period,
+          y = ~conceptLabel,
+          z = z_data,
+          zmin = zmin,
+          zmax= zmax,
+          text = text_data,
           texttemplate = "%{text}",
           hoverinfo = 'text',
-          colorbar = list(title = 'Counts'),
+          colorbar = list(title = colorbar_title),
           type = 'heatmap',
           colorscale = 'Greens',
           showscale = TRUE,
           reversescale = TRUE
         ) %>%
           layout(
-            title = 'Counts per Species',
+            title = plot_title,
             xaxis = list(title = 'Time Period'),
-            yaxis = list(title = 'Species')
+            yaxis = list(title = '', showticklabels = FALSE) 
           )
         
-        # Combine the plots
-        subplot(bar_chart, heatmap, nrows = 1, margin = 0.05) %>%
-          layout(title = 'Activity Pattern')
+        # Combine
+        subplot(bar_chart, heatmap, nrows = 1, margin = 0.05)
       }
     }
   })
   
+  # Render the plot
+  output$combined_plot <- renderPlotly({
+    combined_plot_fn()
+  })
+  # Use a reactiveVal to cache the final plot
+  plot_cache <- reactiveVal(NULL)
   
+  # Save the completed plot to cache whenever it's re-rendered
+  observeEvent(combined_plot_fn(), {
+    combined_plot_fn() %...>% plot_cache()
+  })
   
+  # Render the plot from the reactive (unchanged)
+  output$combined_plot <- renderPlotly({
+    combined_plot_fn()
+  })
+  
+  # Download handler
+  output$download_plotly <- downloadHandler(
+    filename = function() {
+      paste("combined_plot", ".html", sep = "")
+    },
+    content = function(file) {
+      p <- plot_cache()
+      if (is.null(p)) {
+        stop("Plot is not yet ready for download.")
+      }
+      
+      saveWidget(as_widget(p), file)
+    }
+  )
+
   ### TAB RAW CONCEPTS
   observeEvent(input$GetData, {
     # make container for displaying hover text for column headings
