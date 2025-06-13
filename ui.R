@@ -1,5 +1,5 @@
 # Author: Hanna Fricke
-# Description: User interface for activity app.
+# Description: User interface for activity app. 
 # TO-DO :
 # [] DONT HARDCODE METHOD FUTURE BUT BASE IT ON DATA
 
@@ -40,6 +40,7 @@ ui <- fluidPage(
   extendShinyjs(text = js_lang, functions = c()),
   
   # Get timezone from browser - Corrected escaping
+
   tags$script(
     "$(document).on('shiny:sessioninitialized', function(event) {
                                         var n = Intl.DateTimeFormat().resolvedOptions().timeZone;
