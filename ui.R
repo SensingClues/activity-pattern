@@ -14,6 +14,7 @@ library(plotly)
 
 # multi language
 
+#source("ui_header.R")
 
 tryCatch({
   # try to get online version
@@ -49,17 +50,37 @@ ui <- fluidPage(
   
   # Load custom stylesheet
   includeCSS("www/style.css"),
+  shiny::tagList(
+    div(
+      class = "header",
+      
+      # combine the two logos, next to each other
+      div(
+        # logo SC
+        tags$a(
+          href   = "https://sensingclues.org",
+          target = "_blank",
+          class = "logo", img(src = "logo_white.png")),
+      ),
+      
+      # titel
+      div(
+        class = "title",
+        "ACTIVITY PATTERN",
+        style = "font-size: 18px;"
+      ),
+      br(),br(),br(),br(),br(),br(),br()
+    )
+  ),
   sidebarLayout(
     sidebarPanel(
       width = 3,
       HTML(
         paste0(
           "<br>",
-          "<a href='https://www.sensingclues.org/portal/'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='logo_white.png' width = '150'></a>",
           "<br>"
         )
       ),
-      
       # --- About Box ---
       div(class = "about-box",
           h4("About"),
@@ -97,6 +118,10 @@ ui <- fluidPage(
           )
       ),
       br(),
+      div(
+        style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+        add_busy_spinner(spin = "fading-circle", width = "100px", height = "100px")
+      ),
       
       div(class = "filter-section data-sources-box",
           h4("Data Sources"),
@@ -251,7 +276,8 @@ ui <- fluidPage(
                        12,
                        div(
                          style = "margin-top: 20px;",
-                         downloadButton("download_plotly", "Download plot (.html)")
+                         downloadButton("download_plotly", "Download plot (.html)"),
+                         downloadButton("download_csv", "Download Data (.csv)")
                        )
                      )
                    )
