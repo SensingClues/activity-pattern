@@ -81,13 +81,74 @@ ui <- fluidPage(
           "<br>"
         )
       ),
-      # --- About Box ---
-      div(class = "about-box",
-          h4("About"),
-          p("Add a small descriptive text about the app here.")
+      # --- Collapsible About Box ---
+      tags$head(
+        tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
+        tags$style(HTML("
+    .collapsible-section summary::-webkit-details-marker {
+      display: none;
+    }
+    .readmore {
+      font-weight: normal;
+      font-size: inherit;
+      color: #004d40;
+      text-decoration: underline;
+    }
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .collapsible-header .expand-icon {
+      transition: transform 0.3s ease;
+      font-size: 24px;
+      color: #555;
+    }
+    details[open] .expand-icon {
+      transform: rotate(180deg);
+    }
+  "))
       ),
-      br(),
-      # --- End About Box ---
+      
+      tags$details(
+        id = "aboutCollapse",
+        class = "collapsible-section",
+        tags$summary(
+          class = "collapsible-header",
+          HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
+        ),
+        p("Add a small descriptive text about the app here."),
+        tags$a(
+          "Learn more",
+          href = "https://example.com",  # Change to your real link
+          class = "readmore",
+          target = "_blank"
+        )
+      ),
+      
+      tags$script(HTML("
+  document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('aboutCollapse');
+    if (el) {
+      var summary = el.querySelector('summary');
+      summary.addEventListener('click', function(e) {
+        setTimeout(function() {
+          var icon = summary.querySelector('.expand-icon');
+          if (el.hasAttribute('open')) {
+            icon.style.transform = 'rotate(180deg)';
+          } else {
+            icon.style.transform = 'rotate(0deg)';
+          }
+        }, 100);
+      });
+    }
+  });
+")),
+      # --- End Collapsible About Box ---
       
       # Custom button styles
       tags$head(
