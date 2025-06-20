@@ -967,20 +967,24 @@ server <- function(input, output, session) {
   
   ## --- MAIN OUTPUT ------
   
-  # Shared function to generate combined plot
+  # Create a reactiveValues container to hold the data frames
+  plot_data <- reactiveValues(
+    bar_data = NULL,
+    heatmap_data = NULL
+  )
+  
+  # Reactive function that returns only the final Plotly object
   combined_plot_fn <- reactive({
     session$userData$bar_data() %...>% {
-      bar_data_df <- .; bar_data_df <- bar_data_df$df
+      bar_data_df <- .$df  # extract the data frame
       session$userData$heatmap_data() %...>% {
         heatmap_data_df <- .
         
         # Calculate max count for dynamic axis range
-        max_count <- max(bar_data_df$Counts, na.rm = TRUE)
+        max_count <- max(heatmap_data_df$Counts, na.rm = TRUE)
+        xaxis_range <- c(0, max_count + max_count * 0.1)  # 10% padding
         
-        # Use 10% buffer or just add 20 units if scale is small
-        xaxis_range <- c(0, max_count + max_count * 1.1)  # or max_count * 1.1 for percentage padding
-        
-        # Bar chart
+        # Create the bar chart
         bar_chart <- plot_ly(
           data = bar_data_df,
           x = ~Counts,
@@ -996,19 +1000,13 @@ server <- function(input, output, session) {
         ) %>%
           layout(
             title = 'Total Counts per Species and Time Period',
-            xaxis = list(
-              title = 'Counts',
-              range = xaxis_range
-            ),
-            yaxis = list(
-              title = 'Species',
-              categoryorder = "total ascending"
-            ),
+            xaxis = list(title = 'Counts', range = xaxis_range),
+            yaxis = list(title = 'Species', categoryorder = "total ascending"),
             margin = list(r = 5),
             cliponaxis = FALSE
           )
         
-        # Heatmap
+        # Determine heatmap settings based on the input
         if (input$agg_method == "percentage") {
           z_data <- heatmap_data_df$Percentage
           text_data <- round(heatmap_data_df$Percentage)
@@ -1022,16 +1020,17 @@ server <- function(input, output, session) {
           colorbar_title <- "Counts"
           plot_title <- "Counts per Species"
           zmin <- min(bar_data_df$Counts, na.rm = TRUE)
-          zmax <- ceiling(max_count/ 10) * 10
+          zmax <- ceiling(max_count / 10) * 10
         }
         
+        # Create the heatmap
         heatmap <- plot_ly(
           data = heatmap_data_df,
           x = ~Period,
           y = ~conceptLabel,
           z = z_data,
           zmin = zmin,
-          zmax= zmax,
+          zmax = zmax,
           text = text_data,
           texttemplate = "%{text}",
           hoverinfo = 'text',
@@ -1044,33 +1043,31 @@ server <- function(input, output, session) {
           layout(
             title = plot_title,
             xaxis = list(title = 'Time Period'),
-            yaxis = list(title = '', showticklabels = FALSE) 
+            yaxis = list(title = '', showticklabels = FALSE)
           )
         
-        # Combine
+        # Update the reactiveValues with the data frames for downloading later
+        plot_data$bar_data <- bar_data_df
+        plot_data$heatmap_data <- heatmap_data_df
+        
+        # Return only the combined plot (not a list)
         subplot(bar_chart, heatmap, nrows = 1, margin = 0.05)
       }
     }
   })
   
-  # Render the plot
+  # Render the plot by resolving the promise to the final Plotly object
   output$combined_plot <- renderPlotly({
     combined_plot_fn()
   })
-  # Use a reactiveVal to cache the final plot
-  plot_cache <- reactiveVal(NULL)
   
-  # Save the completed plot to cache whenever it's re-rendered
+  # (Optional) Cache the final plot if you want to use it in a download handler for the HTML
+  plot_cache <- reactiveVal(NULL)
   observeEvent(combined_plot_fn(), {
     combined_plot_fn() %...>% plot_cache()
   })
   
-  # Render the plot from the reactive (unchanged)
-  output$combined_plot <- renderPlotly({
-    combined_plot_fn()
-  })
-  
-  # Download handler
+  # Download handler for the Plotly HTML plot
   output$download_plotly <- downloadHandler(
     filename = function() {
       paste("combined_plot", ".html", sep = "")
@@ -1080,8 +1077,30 @@ server <- function(input, output, session) {
       if (is.null(p)) {
         stop("Plot is not yet ready for download.")
       }
-      
       saveWidget(as_widget(p), file)
+    }
+  )
+  
+  # Download handler for the CSV data containing the bar and heatmap data frames
+  output$download_csv <- downloadHandler(
+    filename = function() {
+      paste("combined_data", ".zip", sep = "")
+    },
+    content = function(file) {
+      tmpdir <- tempdir()
+      bar_file <- file.path(tmpdir, "bar_data.csv")
+      heatmap_file <- file.path(tmpdir, "heatmap_data.csv")
+      
+      # Check that plot_data has been updated
+      if (is.null(plot_data$bar_data) || is.null(plot_data$heatmap_data)) {
+        stop("Data is not available yet.")
+      }
+      
+      write.csv(plot_data$bar_data, bar_file, row.names = FALSE)
+      write.csv(plot_data$heatmap_data, heatmap_file, row.names = FALSE)
+      
+      # Zip the CSV files together (requires the 'zip' package)
+      zip::zipr(zipfile = file, files = c(bar_file, heatmap_file), root = tmpdir)
     }
   )
 
