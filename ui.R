@@ -121,10 +121,10 @@ ui <- fluidPage(
           class = "collapsible-header",
           HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
         ),
-        p("Add a small descriptive text about the app here."),
+        p("This app lets you explore animal observation data of your desired time period. You can discover typical activity patterns by hour, month, or season using the interactive heatmap, discover total counts per species, and download underlying data.."),
         tags$a(
           "Learn more",
-          href = "https://example.com",  # Change to your real link
+          href = "https://www.sensingclues.org/",  # Change to your real link
           class = "readmore",
           target = "_blank"
         )
