@@ -121,10 +121,10 @@ ui <- fluidPage(
           class = "collapsible-header",
           HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
         ),
-        p("This app lets you explore animal observation data of your desired time period. You can discover typical activity patterns by hour, month, or season using the interactive heatmap, discover total counts per species, and download underlying data.."),
+        p("This app lets you explore animal observation data for any period. Use the heatmap to reveal activity trends by hour, month, or season, view total counts per species, and download the underlying dataset."),
         tags$a(
           "Learn more",
-          href = "https://www.sensingclues.org/",  # Change to your real link
+          href = "https://www.sensingclues.org/about-activity-pattern",  # Change to your real link
           class = "readmore",
           target = "_blank"
         )
@@ -165,7 +165,7 @@ ui <- fluidPage(
           "#downloadData{background-color:#FB8C00; color:white; font-size:100%}"
         ),
       ),
-      
+      br(),
       # Remove old heading h3(i18n$t("labels.obsReport"))
       uiOutput("userstatus"),
       br(),
