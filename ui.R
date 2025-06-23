@@ -14,6 +14,7 @@ library(plotly)
 
 # multi language
 
+#source("ui_header.R")
 
 tryCatch({
   # try to get online version
@@ -49,24 +50,105 @@ ui <- fluidPage(
   
   # Load custom stylesheet
   includeCSS("www/style.css"),
+  shiny::tagList(
+    div(
+      class = "header",
+      
+      # combine the two logos, next to each other
+      div(
+        # logo SC
+        tags$a(
+          href   = "https://sensingclues.org",
+          target = "_blank",
+          class = "logo", img(src = "logo_white.png")),
+      ),
+      
+      # titel
+      div(
+        class = "title",
+        "ACTIVITY PATTERN",
+        style = "font-size: 18px;"
+      ),
+      br(),br(),br(),br(),br(),br(),br()
+    )
+  ),
   sidebarLayout(
     sidebarPanel(
       width = 3,
       HTML(
         paste0(
           "<br>",
-          "<a href='https://www.sensingclues.org/portal/'><img style = 'display: block; margin-left: auto; margin-right: auto;' src='logo_white.png' width = '150'></a>",
           "<br>"
         )
       ),
-      
-      # --- About Box ---
-      div(class = "about-box",
-          h4("About"),
-          p("Add a small descriptive text about the app here.")
+      # --- Collapsible About Box ---
+      tags$head(
+        tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
+        tags$style(HTML("
+    .collapsible-section summary::-webkit-details-marker {
+      display: none;
+    }
+    .readmore {
+      font-weight: normal;
+      font-size: inherit;
+      color: #004d40;
+      text-decoration: underline;
+    }
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .collapsible-header .expand-icon {
+      transition: transform 0.3s ease;
+      font-size: 24px;
+      color: #555;
+    }
+    details[open] .expand-icon {
+      transform: rotate(180deg);
+    }
+  "))
       ),
-      br(),
-      # --- End About Box ---
+      
+      tags$details(
+        id = "aboutCollapse",
+        class = "collapsible-section",
+        tags$summary(
+          class = "collapsible-header",
+          HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
+        ),
+        p("This app lets you explore animal observation data for any period. Use the heatmap to reveal activity trends by hour, month, or season, view total counts per species, and download the underlying dataset."),
+        tags$a(
+          "Learn more",
+          href = "https://www.sensingclues.org/about-activity-pattern",  # Change to your real link
+          class = "readmore",
+          target = "_blank"
+        )
+      ),
+      
+      tags$script(HTML("
+  document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('aboutCollapse');
+    if (el) {
+      var summary = el.querySelector('summary');
+      summary.addEventListener('click', function(e) {
+        setTimeout(function() {
+          var icon = summary.querySelector('.expand-icon');
+          if (el.hasAttribute('open')) {
+            icon.style.transform = 'rotate(180deg)';
+          } else {
+            icon.style.transform = 'rotate(0deg)';
+          }
+        }, 100);
+      });
+    }
+  });
+")),
+      # --- End Collapsible About Box ---
       
       # Custom button styles
       tags$head(
@@ -83,7 +165,7 @@ ui <- fluidPage(
           "#downloadData{background-color:#FB8C00; color:white; font-size:100%}"
         ),
       ),
-      
+      br(),
       # Remove old heading h3(i18n$t("labels.obsReport"))
       uiOutput("userstatus"),
       br(),
@@ -97,6 +179,10 @@ ui <- fluidPage(
           )
       ),
       br(),
+      div(
+        style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+        add_busy_spinner(spin = "fading-circle", width = "100px", height = "100px")
+      ),
       
       div(class = "filter-section data-sources-box",
           h4("Data Sources"),
@@ -251,7 +337,8 @@ ui <- fluidPage(
                        12,
                        div(
                          style = "margin-top: 20px;",
-                         downloadButton("download_plotly", "Download plot (.html)")
+                         downloadButton("download_plotly", "Download plot (.html)"),
+                         downloadButton("download_csv", "Download Data (.csv)")
                        )
                      )
                    )
