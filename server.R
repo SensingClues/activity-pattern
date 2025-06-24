@@ -982,7 +982,8 @@ server <- function(input, output, session) {
         
         # Calculate max count for dynamic axis range
         max_count <- max(heatmap_data_df$Counts, na.rm = TRUE)
-        xaxis_range <- c(0, max_count + max_count * 0.1)  # 10% padding
+        max_count_bar <- max( bar_data_df$Counts, na.rm = TRUE)
+        xaxis_range <- c(0, max_count_bar + max_count_bar * 0.1)  # 10% padding
         
         # Create the bar chart
         bar_chart <- plot_ly(
