@@ -287,14 +287,29 @@ server <- function(input, output, session) {
   # ------- OUTPUT SIDE - SIDE PANEL SHOWING GROUPS, DATA DIVIDED IN TREE ---------
   
   output$userstatus <- renderUI({
-    # session$user is non-NULL only in authenticated sessions
     req(input$ok)
     isolate({
       Username <- input$username
     })
-    if (session$userData$authenticated) {
-      strong(paste(i18n$t("labels.connectedAs"), Username))
+    if (isTRUE(session$userData$authenticated)) {
+      tags$div(
+        style = "color: white; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 150px;",
+        tags$strong(paste(i18n$t("labels.connectedAs"), Username)),
+        tags$a(
+          href = "#",
+          id = "logout_link",
+          onclick = "event.preventDefault(); Shiny.setInputValue('logout_link', Math.random());",
+          style = "color: white; text-decoration: underline; cursor: pointer;",
+          i18n$t("Logout")
+        )
+      )
+    } else {
+      NULL
     }
+  })
+  observeEvent(input$logout_link, {
+    # Your logout code here, e.g.:
+    session$reload()
   })
   
   # observe group select box
@@ -467,7 +482,7 @@ server <- function(input, output, session) {
       if (rm11_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm11_node))}
       if (rm12_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm12_node))}
       
-
+      
       # Access the top-level nodes
       top_children <- session$userData$tree$children
       
@@ -493,9 +508,18 @@ server <- function(input, output, session) {
         }
       }
       
-
-      if (length(session$userData$tree$children) == 0) {session$userData$tree <- list()}
+      
+      if (length(session$userData$tree$children) > 0) {
+        # Keep  fauna as first-levgel node as the root
+        session$userData$tree <- session$userData$tree$children[[1]]
+        
+        # Optionally, set a friendly name for clarity
+        session$userData$tree$name <- paste0("Root: ", session$userData$tree$name)
+      }
+      
       jsonTree <- shinyTree::treeToJSON(session$userData$tree, pretty = TRUE, createNewId = FALSE)
+  
+      
       enable_all(c("DateRange", "GroupListDiv", "GetData"))
       return(jsonTree)
     }, error = function(e) {
@@ -505,6 +529,7 @@ server <- function(input, output, session) {
       return()
     })
   }) # end tree
+  
   
   output$conceptTree <- renderTree({
     # only render after we have selected a group and retrieved the counts from that group
@@ -867,10 +892,20 @@ server <- function(input, output, session) {
     session$userData$plot_data() %...>% {
       df <- .
       
-      #  Summarise data based on conceptlabel
-      df <- df %>%
-        group_by(conceptLabel) %>%
-        summarise(Counts = n(), .groups = 'drop')
+      time_input <- input$time_input
+      seasons <- user_defined_seasons()
+      
+      # Seasonal grouping if "season" view is selected
+      if (time_input == "season") {
+        df <- df %>%
+          filter(Period %in% names(seasons)) %>%
+          group_by(conceptLabel) %>%
+          summarise(Counts = n(), .groups = 'drop')
+      } else {
+        df <- df %>%
+          group_by(conceptLabel) %>%
+          summarise(Counts = n(), .groups = 'drop')
+      }
       
       message(paste(
         "Debug - bar_data(): Bar data transformation complete with",
@@ -878,12 +913,13 @@ server <- function(input, output, session) {
         "rows."
       ))
       
+      
       # Apply top X row filter
       topX <- input$topX
       if (topX > 0) {
         df <- df %>% 
           top_n(topX, Counts) %>% 
-          arrange(desc(Counts))
+          arrange(desc(Counts)) 
       }
       
       # Order species according to frequency of detection for the bar chart
@@ -962,7 +998,6 @@ server <- function(input, output, session) {
       }
     }
   })
-  
   
   
   ## --- MAIN OUTPUT ------
@@ -1071,7 +1106,7 @@ server <- function(input, output, session) {
   # Download handler for the Plotly HTML plot
   output$download_plotly <- downloadHandler(
     filename = function() {
-      paste("combined_plot", ".html", sep = "")
+      paste("activity_pattern_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to, ".html", sep = "")
     },
     content = function(file) {
       p <- plot_cache()
@@ -1089,8 +1124,8 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       tmpdir <- tempdir()
-      bar_file <- file.path(tmpdir, "bar_data.csv")
-      heatmap_file <- file.path(tmpdir, "heatmap_data.csv")
+      bar_file <- file.path(tmpdir, paste0("bar_data_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to,".csv"))
+      heatmap_file <- file.path(tmpdir, paste0("heatmap_data_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to,".csv"))
       
       # Check that plot_data has been updated
       if (is.null(plot_data$bar_data) || is.null(plot_data$heatmap_data)) {
@@ -1134,55 +1169,55 @@ server <- function(input, output, session) {
       th(i18n$t("columns.longitude"), title = i18n$t("labels.WGS84Lon"))
     ))))
     
-    # Raw concept table
-    output$tableRawConcepts <- DT::renderDataTable({
-      message("Rendering raw concept table")
-      # req(session$userData$processed_obsdata)
-      
-      session$userData$processed_obsdata() %...>% {
-        df <- .
-        
-        # convert POSIXct to character that includes timezone, for datatable
-        df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
-        
-        df <- df %>%
-          select(conceptLabel,
-                 when,
-                 agentName,
-                 observationId,
-                 observationType,
-                 lat,
-                 lon)
-        # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
-        
-        DT::datatable(
-          df,
-          container = RawConceptsHovertext,
-          extensions = "Buttons",
-          options = list(
-            language = list(
-              url = paste0(
-                '//cdn.datatables.net/plug-ins/1.10.11/i18n/',
-                session$userData$lang_long,
-                '.json'
-              )
-            ),
-            paging = TRUE,
-            searching = TRUE,
-            fixedColumns = TRUE,
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = 'frtip<"sep">B',
-            #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
-            pageLength = 999,
-            buttons = list(
-              list(extend = "copy", text = i18n$t("commands.copy")),
-              list(extend = "csv", text = i18n$t("commands.csv"))
-            )
-          )
-        ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
-      }
-    }) # end output tableRawConcepts
+    #' # Raw concept table
+    #' output$tableRawConcepts <- DT::renderDataTable({
+    #'   message("Rendering raw concept table")
+    #'   # req(session$userData$processed_obsdata)
+    #'   
+    #'   session$userData$processed_obsdata() %...>% {
+    #'     df <- .
+    #'     
+    #'     # convert POSIXct to character that includes timezone, for datatable
+    #'     df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
+    #'     
+    #'     df <- df %>%
+    #'       select(conceptLabel,
+    #'              when,
+    #'              agentName,
+    #'              observationId,
+    #'              observationType,
+    #'              lat,
+    #'              lon)
+    #'     # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
+    #'     
+    #'     DT::datatable(
+    #'       df,
+    #'       container = RawConceptsHovertext,
+    #'       extensions = "Buttons",
+    #'       options = list(
+    #'         language = list(
+    #'           url = paste0(
+    #'             '//cdn.datatables.net/plug-ins/1.10.11/i18n/',
+    #'             session$userData$lang_long,
+    #'             '.json'
+    #'           )
+    #'         ),
+    #'         paging = TRUE,
+    #'         searching = TRUE,
+    #'         fixedColumns = TRUE,
+    #'         autoWidth = TRUE,
+    #'         ordering = TRUE,
+    #'         dom = 'frtip<"sep">B',
+    #'         #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
+    #'         pageLength = 999,
+    #'         buttons = list(
+    #'           list(extend = "copy", text = i18n$t("commands.copy")),
+    #'           list(extend = "csv", text = i18n$t("commands.csv"))
+    #'         )
+    #'       )
+    #'     ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
+    #'   }
+    #' }) # end output tableRawConcepts
     
     
     ### TAB RAW OBSERVATIONS

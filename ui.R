@@ -14,7 +14,7 @@ library(plotly)
 
 # multi language
 
-#source("ui_header.R")
+
 
 tryCatch({
   # try to get online version
@@ -69,7 +69,11 @@ ui <- fluidPage(
         "ACTIVITY PATTERN",
         style = "font-size: 18px;"
       ),
-      br(),br(),br(),br(),br(),br(),br()
+      # Right side: user status
+      div(
+        style = "min-width: 150px; text-align: right;",
+        uiOutput("userstatus")
+      )
     )
   ),
   sidebarLayout(
@@ -158,6 +162,7 @@ ui <- fluidPage(
         tags$style(
           "#login{background-color:#FB8C00; color:white; font-size:100%}"
         ),
+        
         tags$style(
           "#message_more_dates{color: red; font-size: 20px; font-style: italic}"
         ),
@@ -165,9 +170,6 @@ ui <- fluidPage(
           "#downloadData{background-color:#FB8C00; color:white; font-size:100%}"
         ),
       ),
-      br(),
-      # Remove old heading h3(i18n$t("labels.obsReport"))
-      uiOutput("userstatus"),
       br(),
       
       # --- Filter Sections ---
@@ -301,13 +303,14 @@ ui <- fluidPage(
                            numericInput(
                              inputId = "topX",
                              label = "Top rows:",
-                             value = 10,
+                             value = 5,
                              min = 1,
+                             max = 20,
                              step = 1,
                              width = "100%"
                            )
                          ),
-                         
+               
                          # Aligned Radio Buttons (inline, vertically centered)
                          div(
                            style = "display: flex; align-items: flex-end; height: 58px;",  # Adjust height to match input height
@@ -337,28 +340,28 @@ ui <- fluidPage(
                        12,
                        div(
                          style = "margin-top: 20px;",
-                         downloadButton("download_plotly", "Download plot (.html)"),
+                         downloadButton("download_plotly", "Download activity pattern plot (.html)"),
                          downloadButton("download_csv", "Download Data (.csv)")
                        )
                      )
                    )
                  )
         ),
-        tabPanel(
-          i18n$t("labels.rawConceptsTab"),
-          fluidRow(column(
-            12, DT::dataTableOutput("tableRawConcepts")
-          )),
-          div(
-            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-            add_busy_spinner(
-              spin = "fading-circle",
-              width = "100px",
-              height = "100px"
-            )
-          )
-        ),
-        
+        # tabPanel(
+        #   i18n$t("labels.rawConceptsTab"),
+        #   fluidRow(column(
+        #     12, DT::dataTableOutput("tableRawConcepts")
+        #   )),
+        #   div(
+        #     style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+        #     add_busy_spinner(
+        #       spin = "fading-circle",
+        #       width = "100px",
+        #       height = "100px"
+        #     )
+        #   )
+        # ),
+        # 
         # endpanel
         
         tabPanel(
