@@ -36,7 +36,7 @@ plan(multisession)
 
 # source function lib
 source("functions.R")
-
+source("ui_login.R")
 ## Some language package stuff
 
 ### CB: added these lines for treeToJSON
@@ -157,51 +157,16 @@ server <- function(input, output, session) {
   
   
   # -- MAKE POP UP MODAL FOR ENTERING USER CREDENTIALS AND DATA
-  
   # Return the UI for a modal dialog with data selection input. If 'failed' 
   # is TRUE, then display a message that the previous value was invalid.
-  dataModal <- function(failed = FALSE) {
+  dataModal <- function() {
     modalDialog(
-      tags$script(HTML(js)),
-      title = i18n$t("labels.clueyCredentials"), #"Cluey credentials",
-      # the selectbox for a server will only show in apps for testing
-      if (grepl("test", session$clientData$url_pathname)) {
-        message(paste("Adding selectbox for server because we are running on", session$clientData$url_pathname))
-        selectInput("server", label = "Server", 
-                    choices = c("focus.sensingclues", "focus.test.sensingclues"), 
-                    selected = "focus.sensingclues")
-      },
-      selectInput("lang", label = i18n$t("labels.chooseLanguage"), 
-                  choices = language_table$lang_short, selected = session$userData$sel_lang), #lang_short),
-      textInput("username", i18n$t("labels.Cluey-username")),
-      passwordInput("password", i18n$t("labels.Cluey-password")),
-      size = "s",
-      if (failed) 
-        div(tags$b(i18n$t("labels.invalid-credential"), style = "color: red;")),
-      footer = tagList(
-        actionButton("ok", "OK")
-      )
-    )
-  }
-  
-  resetModal <- function() {
-    modalDialog(
-      title = i18n$t("commands.logout"),
-      size = "s",
-      footer = tagList(
-        modalButton(i18n$t("commands.cancel")),
-        actionButton("reset", "OK")
-      )
-    )
-  }
-  resetModal <- function() {
-    modalDialog(
-      title = i18n$t("commands.logout"),
-      size = "s",
-      footer = tagList(
-        modalButton(i18n$t("commands.cancel")),
-        actionButton("reset", "OK")
-      )
+      mod_login_ui("login", browser_path = session$clientData$url_pathname),
+      title     = div(style = "text-align: center; width: 100%;", i18n$t("labels.clueyCredentials")),
+      size      = "s",
+      footer    = NULL,
+      easyClose = FALSE,
+      fade      = TRUE
     )
   }
   
@@ -211,15 +176,15 @@ server <- function(input, output, session) {
     showModal(dataModal())
   })
   
-  
   # When OK button is pressed, attempt to authenticate. If successful,
   # remove the modal.
   
   obs2 <- observe({
     req(input$ok)
     isolate({
-      Username <-  input$username
-      Password <-  input$password
+      Username <- input$username
+      Password <- input$password
+      
       session$userData$clueyUser <- Username
     })
     
@@ -232,43 +197,50 @@ server <- function(input, output, session) {
         session$userData$url <- "https://focus.test.sensingclues.org/"
       }
     }
-    message(paste("LOGGING INTO", session$userData$url))
+    message(paste0("LOGGING INTO  ", session$userData$url))
     
-    session$userData$cookie_mt <- sensingcluesr::login_cluey(username = Username, password = Password, url = session$userData$url)
+    session$userData$cookie_mt <- sensingcluesr::login_cluey(username = Username, 
+                                                             password = Password, 
+                                                             url = session$userData$url)
     if (!is.null(session$userData$cookie_mt)) {
       session$userData$authenticated <- TRUE
       obs1$suspend()
       removeModal()
       # after successful login
-      session$userData$hierarchy <- sensingcluesr::get_hierarchy(url = session$userData$url, lang = session$userData$lang_short) 
+      session$userData$hierarchy <- sensingcluesr::get_hierarchy(url = session$userData$url, 
+                                                                 lang = session$userData$lang_short)
       session$userData$concepts <- session$userData$hierarchy$concepts
-      
+      # get groups needs to be done only once
+      # debug
+      # message(paste0("Get initial groups for ",session$userData$clueyUser,' from ',from,' to ',to)) 
+      # session$userData$groups <- sensingcluesr::get_groups(from = from,
+      #                                                      to = to,
+      #                                                      cookie = session$userData$cookie_mt, 
+      #                                                      url = session$userData$url)
       # put start en end date in dateRangeInput
       updateDateRangeInput(session, "DateRange",
                            start = isolate(session$userData$date_from),
-                           end = isolate(session$userData$date_to),
-                           max = Sys.Date())
+                           end = isolate(session$userData$date_to))
       
       # which layers are available to the user
-      layers <- sensingcluesr::get_layer_details(cookie = session$userData$cookie_mt, url = session$userData$url)
-      # filter layers of the (Multi)Polygon type for the per area tab
-      session$userData$layers <- layers %>% filter(geometryType %in% c("Polygon", "MultiPolygon"))
+      session$userData$layers <- sensingcluesr::get_layer_details(cookie = session$userData$cookie_mt, url = session$userData$url)
       # message(paste0("LAYERS ", paste(session$userData$layers, sep = "|")))
+      updateSelectInput(session, "MapLayers", choices = c(i18n$t("labels.noneSelected"), sort(unlist(session$userData$layers$layerName))))
+      session$userData$selectedLayer <- i18n$t("labels.noneSelected")
       
       # enable input fields/buttons
       enable("DateRange")
       enable("GroupListDiv")
-      enable("GetData")
+      enable("BuildMap")
+      enable("MapLayers")
       
     } else {
       session$userData$authenticated <- FALSE
       # inform user
-      showModal(dataModal(failed = TRUE))
-    }     
+      showNotification(i18n$t("labels.invalid-credential"), type = "error")
+    }
   }
   )
-  
-  # -- End modal stuff --
   
   # Evt. taal wijzigen 
   
