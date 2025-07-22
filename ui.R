@@ -60,7 +60,7 @@ ui <- fluidPage(
         tags$a(
           href   = "https://sensingclues.org",
           target = "_blank",
-          class = "logo", img(src = "logo_white.png")),
+          class = "logo", img(src = "logo_white.png"))
       ),
       
       # titel
@@ -125,7 +125,7 @@ ui <- fluidPage(
           class = "collapsible-header",
           HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
         ),
-        p("This app lets you explore animal observation data for any period. Use the heatmap to reveal activity trends by hour, month, or season, view total counts per species, and download the underlying dataset."),
+        p("This app lets you explore animal observation data for any period. Use the heatmap to reveal activity trends by hour or month, view total counts per species or download the underlying dataset."),
         tags$a(
           "Learn more",
           href = "https://www.sensingclues.org/about-activity-pattern",  # Change to your real link
@@ -251,8 +251,8 @@ ui <- fluidPage(
                              label = i18n$t("Time interval"),
                              choices = list(
                                "Hourly" = "hourly",
-                               "Monthly" = "monthly",
-                               "Seasonal" = "season"
+                               "Monthly" = "monthly"
+  #                             "Seasonal" = "season"
                              ),
                              selected = "hourly",
                              width = "100%"
