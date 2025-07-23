@@ -1,105 +1,98 @@
-/* www/style.css */
+$blue:    #1E88E5;
+  $indigo:  #3949AB;
+  $purple:  #5E35B1;
+  $pink:    #D81B60;
+  $red:     #E53935;
+  $orange:  #FB8C00;
+  $yellow:  #FDD835;
+  $green:   #43A047;
+  $teal:    #00897B;
+  $cyan:    #00ACC1;
+  
+  $primary:       #004D40;
+  $secondary:     #FFAB00;
+  $success:       #00897B;
+  $info:          #607D8B;
+  $warning:       #FB8C00;
+  $danger:        #E53935;
+  $light:         $gray-100;
+$dark:          $gray-800;
 
-/* ----------------------------
-   RESET & GLOBAL STYLING
----------------------------- */
-html, body {
-  margin: 0;
-  padding: 0;
-}
 body {
-  font-family: Verdana, sans-serif;
+  font-family: Verdana;  
+  
 }
+
 .container-fluid {
   padding-left: 0;
   padding-right: 0;
 }
+.row {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+.row > [class*="col-"] {
+  padding-left: 0px;
+  padding-right: 5px;
+}
 
-/* ----------------------------
-   HEADER
----------------------------- */
+
+
+/* ============================
+   Header (20% viewport height with 10% horizontal padding)
+============================ */
 .header {
   display: flex;
-  align-items: flex-start;      /* items at top */
-  justify-content: space-between;
-  background-color: #004d40;     /* primary */
+  align-items: flex-start;  
+  justify-content: space-between; /* Distribute items across the header */
+  background-color: #004d40;
   height: 20vh;
-  box-sizing: border-box;        /* include padding in height */
-  padding: 12px 7vw 0;           /* 12px top, 7vw sides, 0 bottom */
+  padding: 2rem 7vw;      /* Adjust horizontal padding */
   border-bottom: 2px solid #00332b;
   position: relative;
-  z-index: 10;                   /* above content-wrapper */
+  z-index: 0;
 }
+
 .header .logo img {
   height: 40px;
-  margin: 0;
+  margin-top: 0.5rem;
 }
+
 .header .title {
-  flex: 1;
   font-size: 1.5rem;
   font-weight: bold;
   letter-spacing: 1px;
-  color: #fff;
-  text-align: center;
-  margin-top: 0;
+  color: white;
+  text-align: center;  /* Center the title text */
 }
 
-/* ----------------------------
-   CONTENT WRAPPER
----------------------------- */
-.content-wrapper {
-  position: relative;
-  top: -100px;                    /* overlap amount */
-  margin: 0 20px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  z-index: 20;                   /* below header */
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+body {
+  z-index: 1000;
+  position: relative; /* z-index only works on positioned elements */
 }
 
-/* ----------------------------
-   BUTTONS & SPINNER MESSAGE
----------------------------- */
-#GetData,
-#downloadData,
-#login {
-  background-color: #FB8C00;     /* warning */
-  color: #fff;
-  font-size: 100%;
-}
-#message_more_dates {
-  color: red;
-  font-size: 20px;
-  font-style: italic;
+.content {
+  position: relative;      /* enable positioning */
+  top: -10vh;              /* pull up over the header by 20px (adjust as needed) */
+  margin: 0 50px;          /* xx px left/right margins */
+  z-index: 2;              /* above .header (which should be z-index:1 or 0) */
+  background: white;       /* or whatever bg you need */
+  border-radius: 10px;     /* rounded corners */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* optional drop-shadow */
+  overflow: hidden;        /* clip child content to rounded corners */
+  height: 90vh;            /* hoogte = xx% van viewport */
+  overflow-y: auto;        /* scrollen als inhoud groter is */
 }
 
-/* ----------------------------
-   COLLAPSIBLE “About”
----------------------------- */
-.collapsible-section summary::-webkit-details-marker {
-  display: none;
+
+.well {
+    background-color: #ECEFF1;
+    # color: #ECEFF1;
 }
-.readmore {
-  font-weight: normal;
-  font-size: inherit;
-  color: #004d40;
-  text-decoration: underline;
-}
-.collapsible-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-.collapsible-header .expand-icon {
-  transition: transform 0.3s ease;
-  font-size: 24px;
-  color: #555;
-}
-details[open] .expand-icon {
-  transform: rotate(180deg);
-}
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <img src="path/to/sidebar-logo.png" alt="Sidebar Logo">
+  </div>
+  <!-- Sidebar content -->
+</div>
