@@ -23,8 +23,8 @@ library(promises)
 
 # load the sensincluesr package
 library(devtools)
-#devtools::install_github("sensingclues/sensingcluesr@v1.0.3", upgrade = "never")
-library(sensingcluesr)
+devtools::install_github("sensingclues/sensingcluesr@v1.0.3", upgrade = "never")
+#library(sensingcluesr)
 # dynamic color maps for more then 12 colors
 library(colorRamps)
 
