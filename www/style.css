@@ -80,7 +80,7 @@ body {
   border-radius: 10px;     /* rounded corners */
   box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* optional drop-shadow */
   overflow: hidden;        /* clip child content to rounded corners */
-  height: 90vh;            /* hoogte = xx% van viewport */
+  height: 80vh;            /* hoogte = xx% van viewport */
   overflow-y: auto;        /* scrollen als inhoud groter is */
 }
 

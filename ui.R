@@ -80,7 +80,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      style = "height: 90vh; overflow-y: auto;",
+      style = "height: 85vh; overflow-y: auto;",
       # --- Collapsible About Box ---
       tags$head(
         tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
@@ -219,7 +219,7 @@ ui <- fluidPage(
     
     mainPanel(
       width = 9,
-      style = "height: 90%; overflow-y: auto;",
+      style = "height: 85%; overflow-y: auto;",
       tags$head(tags$style(
         # Corrected escaping for the CSS content within HTML()
         # HTML(".sep {
@@ -330,20 +330,31 @@ ui <- fluidPage(
                        plotlyOutput("combined_plot")
                      )
                    ),
-                   
-                   # === Download Button Row ===
-                   fluidRow(
-                     column(
-                       12,
-                       div(
-                         style = "margin-top: 20px;",
-                         downloadButton("download_plotly", "Download activity pattern plot (.html)"),
-                         downloadButton("download_csv", "Download Data (.csv)")
-                       )
-                     )
-                   )
-                 )
-        ),
+                 ),
+              ),
+  # === Download Button Row ===
+            tags$footer(
+              fluidRow(
+              column(
+                12,
+                div(
+                  style = "text-align: center;",
+                  downloadButton("download_plotly", "Download activity pattern plot (.html)"),
+                  downloadButton("download_csv", "Download Data (.csv)"),
+                  style = paste(
+                  "position: fixed;",
+                  "bottom: 0;",
+                  "left: 0;",
+                  "width: 100%;",
+                  "background-color: #fff;",
+                  "padding: 10px;",
+                  "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
+                  sep = " "
+                  )
+                )
+              )
+            )
+          ),
         # tabPanel(
         #   i18n$t("labels.rawConceptsTab"),
         #   fluidRow(column(
