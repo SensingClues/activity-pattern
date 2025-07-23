@@ -59,7 +59,7 @@ ui <- fluidPage(
         
         sidebarPanel(
           width = 3,
-          HTML("<br><br>"),
+          #HTML("<br>"),
           
           # Collapsible About Box
           tags$head(
@@ -96,6 +96,7 @@ ui <- fluidPage(
           
           # Filters
           div(class = "filter-section time-period-box",
+              br(),
               h4("Time Period"),
               div(class = "date-range-input-container",
                   disabled(dateRangeInput("DateRange", i18n$t("labels.selectPeriod")))
