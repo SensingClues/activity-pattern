@@ -80,6 +80,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       width = 3,
+      style = "height: 90vh; overflow-y: auto;",
       # --- Collapsible About Box ---
       tags$head(
         tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
@@ -218,6 +219,7 @@ ui <- fluidPage(
     
     mainPanel(
       width = 9,
+      style = "height: 90%; overflow-y: auto;",
       tags$head(tags$style(
         # Corrected escaping for the CSS content within HTML()
         # HTML(".sep {
