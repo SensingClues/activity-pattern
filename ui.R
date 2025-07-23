@@ -76,15 +76,10 @@ ui <- fluidPage(
       )
     )
   ),
+  div(class = "content",
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      HTML(
-        paste0(
-          "<br>",
-          "<br>"
-        )
-      ),
       # --- Collapsible About Box ---
       tags$head(
         tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
@@ -225,11 +220,11 @@ ui <- fluidPage(
       width = 9,
       tags$head(tags$style(
         # Corrected escaping for the CSS content within HTML()
-        HTML(".sep {
-          width: 20px;
-          height: 1px;
-          float: left;
-          }")
+        # HTML(".sep {
+        #   width: 20px;
+        #   height: 1px;
+        #   float: left;
+        #   }")
       )),
       tabsetPanel(
         type = "tabs",
@@ -245,7 +240,7 @@ ui <- fluidPage(
                          
                          # Time Interval Box
                          div(
-                           style = "width: 100px;",
+                           style = "width: 150px;",
                            selectInput(
                              inputId = "time_input",
                              label = i18n$t("Time interval"),
@@ -265,7 +260,7 @@ ui <- fluidPage(
                            div(
                              style = "display: flex; align-items: center; gap: 20px;",
                              div(
-                               style = "width: 100px;",
+                               style = "width: 150px;",
                                numericInput(
                                  "num_seasons",
                                  "# Seasons:",
@@ -299,7 +294,7 @@ ui <- fluidPage(
                          
                          # Top X Filter Box (match width to Time Interval box)
                          div(
-                           style = "width: 100px;",
+                           style = "width: 150px;",
                            numericInput(
                              inputId = "topX",
                              label = "Top rows:",
@@ -383,6 +378,7 @@ ui <- fluidPage(
           )
         )
       )
+    )
     )
   )
 )
