@@ -28,7 +28,7 @@ body {
   padding-right: 0;
 }
 .row {
-  margin-left: 5px;
+  margin-left: 0px;
   margin-right: 5px;
 }
 .row > [class*="col-"] {
