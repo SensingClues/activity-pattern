@@ -79,11 +79,11 @@ body {
   background: white;       /* or whatever bg you need */
   border-radius: 10px;     /* rounded corners */
   box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* optional drop-shadow */
-  overflow: hidden;           /* clip child content to rounded corners */
-  height: 100vh;           /* hoogte = xx% van viewport */
-  overflow-y: auto;       /* scrollen als inhoud groter is */
-
+  overflow: hidden;        /* clip child content to rounded corners */
+  height: 90vh;            /* hoogte = xx% van viewport */
+  overflow-y: auto;        /* scrollen als inhoud groter is */
 }
+
 
 .well {
     background-color: #ECEFF1;
