@@ -330,10 +330,10 @@ ui <- fluidPage(
                        plotlyOutput("combined_plot")
                      )
                    ),
-                 ),
-              ),
-  # === Download Button Row ===
-            tags$footer(
+  #               ),
+  #             ),
+  # # === Download Button Row ===
+  #           tags$footer(
               fluidRow(
               column(
                 12,
@@ -341,19 +341,20 @@ ui <- fluidPage(
                   style = "text-align: center;",
                   downloadButton("download_plotly", "Download activity pattern plot (.html)"),
                   downloadButton("download_csv", "Download Data (.csv)"),
-                  style = paste(
-                  "position: fixed;",
-                  "bottom: 0;",
-                  "left: 0;",
-                  "width: 100%;",
-                  "background-color: #fff;",
-                  "padding: 10px;",
-                  "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
-                  sep = " "
-                  )
+                  # style = paste(
+                  # "position: fixed;",
+                  # "bottom: 0;",
+                  # "left: 0;",
+                  # "width: 100%;",
+                  # "background-color: #fff;",
+                  # "padding: 10px;",
+                  # "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
+                  # sep = " "
+                  # )
                 )
               )
             )
+          )
           ),
         # tabPanel(
         #   i18n$t("labels.rawConceptsTab"),
