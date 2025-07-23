@@ -183,6 +183,7 @@ ui <- fluidPage(
       ),
       
       div(class = "filter-section data-sources-box",
+          style = "position: relative; z-index: 7000;",
           h4("Data Sources"),
           disabled(div(
             class = "choosechannel",
@@ -204,6 +205,7 @@ ui <- fluidPage(
       br(),
       
       div(class = "filter-section concepts-box",
+          style = "position: relative; z-index: 5000;",
           h4("Concepts"),
           p("Select concepts (one or more)"),
           shinyTree("conceptTree", checkbox = TRUE, theme = "proton")
@@ -330,69 +332,64 @@ ui <- fluidPage(
                        plotlyOutput("combined_plot")
                      )
                    ),
-  #               ),
-  #             ),
-  # # === Download Button Row ===
-  #           tags$footer(
-              fluidRow(
-              column(
-                12,
-                div(
-                  style = "text-align: center;",
-                  downloadButton("download_plotly", "Download activity pattern plot (.html)"),
-                  downloadButton("download_csv", "Download Data (.csv)"),
-                  # style = paste(
-                  # "position: fixed;",
-                  # "bottom: 0;",
-                  # "left: 0;",
-                  # "width: 100%;",
-                  # "background-color: #fff;",
-                  # "padding: 10px;",
-                  # "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
-                  # sep = " "
-                  # )
-                )
+                  fluidRow(
+                    # style = paste(
+                    #   "position: fixed;",
+                    #   "bottom: 0;",
+                    #   "left: 0;",
+                    #   "width: 100%;",
+                    #   "background-color: #fff;",
+                    #   "padding: 10px;",
+                    #   "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
+                    #   "text-align: center;",
+                    #   "z-index: 2000;",
+                    #   sep = " "
+                    # ),
+                    column(
+                      12,
+                      downloadButton("download_plotly", "Download activity pattern plot (.html)"),
+                      downloadButton("download_csv",    "Download Data (.csv)")
+                    )
+                  )
               )
-            )
-          )
           ),
-        # tabPanel(
-        #   i18n$t("labels.rawConceptsTab"),
-        #   fluidRow(column(
-        #     12, DT::dataTableOutput("tableRawConcepts")
-        #   )),
-        #   div(
-        #     style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-        #     add_busy_spinner(
-        #       spin = "fading-circle",
-        #       width = "100px",
-        #       height = "100px"
-        #     )
-        #   )
-        # ),
-        # 
-        # endpanel
-        
-        tabPanel(
-          i18n$t("labels.rawData"),
-          br(),
-          column(2, br(), br(), downloadButton(
-            "downloadData", i18n$t("commands.download")
-          )),
-          fluidRow(column(
-            12, DT::dataTableOutput("tableRawObservations")
-          )),
-          div(
-            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-            add_busy_spinner(
-              spin = "fading-circle",
-              width = "100px",
-              height = "100px"
+          # tabPanel(
+          #   i18n$t("labels.rawConceptsTab"),
+          #   fluidRow(column(
+          #     12, DT::dataTableOutput("tableRawConcepts")
+          #   )),
+          #   div(
+          #     style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+          #     add_busy_spinner(
+          #       spin = "fading-circle",
+          #       width = "100px",
+          #       height = "100px"
+          #     )
+          #   )
+          # ),
+          # 
+          # endpanel
+          
+          tabPanel(
+            i18n$t("labels.rawData"),
+            br(),
+            column(2, br(), br(), downloadButton(
+              "downloadData", i18n$t("commands.download")
+            )),
+            fluidRow(column(
+              12, DT::dataTableOutput("tableRawObservations")
+            )),
+            div(
+              style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+              add_busy_spinner(
+                spin = "fading-circle",
+                width = "100px",
+                height = "100px"
+              )
             )
           )
         )
       )
-    )
     )
   )
 )
