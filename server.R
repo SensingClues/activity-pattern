@@ -1,5 +1,3 @@
-# server.R
-
 ## Translating heatmap plot into RShiny App SC - server script
 ## Author: H. Fricke
 ## Date: 22-03-2025
@@ -7,7 +5,10 @@
 ## To-Do:
 ## [] method selection does not work
 
+
 options(shiny.reactlog = TRUE)
+
+
 
 ## SET UP libraries and sourced files
 #  Define server logic (other libraries in ui)
@@ -23,8 +24,8 @@ library(promises)
 
 # load the sensincluesr package
 library(devtools)
-devtools::install_github("sensingclues/sensingcluesr@v1.0.3", upgrade = "never")
-#library(sensingcluesr)
+#devtools::install_github("sensingclues/sensingcluesr@v1.0.3", upgrade = "never")
+library(sensingcluesr)
 # dynamic color maps for more then 12 colors
 library(colorRamps)
 
