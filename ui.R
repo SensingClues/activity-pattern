@@ -14,7 +14,7 @@ library(plotly)
 
 # multi language
 
-#source("ui_header.R")
+
 
 tryCatch({
   # try to get online version
@@ -60,7 +60,7 @@ ui <- fluidPage(
         tags$a(
           href   = "https://sensingclues.org",
           target = "_blank",
-          class = "logo", img(src = "logo_white.png")),
+          class = "logo", img(src = "logo_white.png"))
       ),
       
       # titel
@@ -69,18 +69,18 @@ ui <- fluidPage(
         "ACTIVITY PATTERN",
         style = "font-size: 18px;"
       ),
-      br(),br(),br(),br(),br(),br(),br()
+      # Right side: user status
+      div(
+        style = "min-width: 150px; text-align: right;",
+        uiOutput("userstatus")
+      )
     )
   ),
+  div(class = "content",
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      HTML(
-        paste0(
-          "<br>",
-          "<br>"
-        )
-      ),
+      style = "height: 85vh; overflow-y: auto;",
       # --- Collapsible About Box ---
       tags$head(
         tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/icon?family=Material+Icons"),
@@ -121,10 +121,10 @@ ui <- fluidPage(
           class = "collapsible-header",
           HTML('<span>About</span><i class="material-icons expand-icon">expand_more</i>')
         ),
-        p("This app lets you explore animal observation data for any period. Use the heatmap to reveal activity trends by hour, month, or season, view total counts per species, and download the underlying dataset."),
+        p("With this app you can explore pattern in animal observation data. Use the matrix to reveal activity trends by hour or month, view total counts per species or download the underlying datasets."),
         tags$a(
           "Learn more",
-          href = "https://www.sensingclues.org/about-activity-pattern",  # Change to your real link
+          href = "https://www.sensingclues.org/about-activity-pattern",
           class = "readmore",
           target = "_blank"
         )
@@ -158,6 +158,7 @@ ui <- fluidPage(
         tags$style(
           "#login{background-color:#FB8C00; color:white; font-size:100%}"
         ),
+        
         tags$style(
           "#message_more_dates{color: red; font-size: 20px; font-style: italic}"
         ),
@@ -165,9 +166,6 @@ ui <- fluidPage(
           "#downloadData{background-color:#FB8C00; color:white; font-size:100%}"
         ),
       ),
-      br(),
-      # Remove old heading h3(i18n$t("labels.obsReport"))
-      uiOutput("userstatus"),
       br(),
       
       # --- Filter Sections ---
@@ -185,6 +183,7 @@ ui <- fluidPage(
       ),
       
       div(class = "filter-section data-sources-box",
+          style = "position: relative; z-index: 7000;",
           h4("Data Sources"),
           disabled(div(
             class = "choosechannel",
@@ -206,6 +205,7 @@ ui <- fluidPage(
       br(),
       
       div(class = "filter-section concepts-box",
+          style = "position: relative; z-index: 5000;",
           h4("Concepts"),
           p("Select concepts (one or more)"),
           shinyTree("conceptTree", checkbox = TRUE, theme = "proton")
@@ -221,13 +221,14 @@ ui <- fluidPage(
     
     mainPanel(
       width = 9,
+      style = "height: 85%; overflow-y: auto;",
       tags$head(tags$style(
         # Corrected escaping for the CSS content within HTML()
-        HTML(".sep {
-          width: 20px;
-          height: 1px;
-          float: left;
-          }")
+        # HTML(".sep {
+        #   width: 20px;
+        #   height: 1px;
+        #   float: left;
+        #   }")
       )),
       tabsetPanel(
         type = "tabs",
@@ -243,14 +244,14 @@ ui <- fluidPage(
                          
                          # Time Interval Box
                          div(
-                           style = "width: 100px;",
+                           style = "width: 150px;",
                            selectInput(
                              inputId = "time_input",
                              label = i18n$t("Time interval"),
                              choices = list(
                                "Hourly" = "hourly",
-                               "Monthly" = "monthly",
-                               "Seasonal" = "season"
+                               "Monthly" = "monthly"
+  #                             "Seasonal" = "season"
                              ),
                              selected = "hourly",
                              width = "100%"
@@ -263,7 +264,7 @@ ui <- fluidPage(
                            div(
                              style = "display: flex; align-items: center; gap: 20px;",
                              div(
-                               style = "width: 100px;",
+                               style = "width: 150px;",
                                numericInput(
                                  "num_seasons",
                                  "# Seasons:",
@@ -297,17 +298,18 @@ ui <- fluidPage(
                          
                          # Top X Filter Box (match width to Time Interval box)
                          div(
-                           style = "width: 100px;",
+                           style = "width: 150px;",
                            numericInput(
                              inputId = "topX",
                              label = "Top rows:",
-                             value = 10,
+                             value = 5,
                              min = 1,
+                             max = 20,
                              step = 1,
                              width = "100%"
                            )
                          ),
-                         
+               
                          # Aligned Radio Buttons (inline, vertically centered)
                          div(
                            style = "display: flex; align-items: flex-end; height: 58px;",  # Adjust height to match input height
@@ -330,52 +332,60 @@ ui <- fluidPage(
                        plotlyOutput("combined_plot")
                      )
                    ),
-                   
-                   # === Download Button Row ===
-                   fluidRow(
-                     column(
-                       12,
-                       div(
-                         style = "margin-top: 20px;",
-                         downloadButton("download_plotly", "Download plot (.html)"),
-                         downloadButton("download_csv", "Download Data (.csv)")
-                       )
-                     )
-                   )
-                 )
-        ),
-        tabPanel(
-          i18n$t("labels.rawConceptsTab"),
-          fluidRow(column(
-            12, DT::dataTableOutput("tableRawConcepts")
-          )),
-          div(
-            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-            add_busy_spinner(
-              spin = "fading-circle",
-              width = "100px",
-              height = "100px"
-            )
-          )
-        ),
-        
-        # endpanel
-        
-        tabPanel(
-          i18n$t("labels.rawData"),
-          br(),
-          column(2, br(), br(), downloadButton(
-            "downloadData", i18n$t("commands.download")
-          )),
-          fluidRow(column(
-            12, DT::dataTableOutput("tableRawObservations")
-          )),
-          div(
-            style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
-            add_busy_spinner(
-              spin = "fading-circle",
-              width = "100px",
-              height = "100px"
+                  fluidRow(
+                    # style = paste(
+                    #   "position: fixed;",
+                    #   "bottom: 0;",
+                    #   "left: 0;",
+                    #   "width: 100%;",
+                    #   "background-color: #fff;",
+                    #   "padding: 10px;",
+                    #   "box-shadow: 0 -2px 5px rgba(0,0,0,0.1);",
+                    #   "text-align: center;",
+                    #   "z-index: 2000;",
+                    #   sep = " "
+                    # ),
+                    column(
+                      12,
+                      downloadButton("download_plotly", "Download activity pattern plot (.html)"),
+                      downloadButton("download_csv",    "Download Data (.csv)")
+                    )
+                  )
+              )
+          ),
+          # tabPanel(
+          #   i18n$t("labels.rawConceptsTab"),
+          #   fluidRow(column(
+          #     12, DT::dataTableOutput("tableRawConcepts")
+          #   )),
+          #   div(
+          #     style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+          #     add_busy_spinner(
+          #       spin = "fading-circle",
+          #       width = "100px",
+          #       height = "100px"
+          #     )
+          #   )
+          # ),
+          # 
+          # endpanel
+          
+          tabPanel(
+            i18n$t("labels.rawData"),
+            br(),
+            column(2, br(), br(), downloadButton(
+              "downloadData", i18n$t("commands.download")
+            )),
+            fluidRow(column(
+              12, DT::dataTableOutput("tableRawObservations")
+            )),
+            div(
+              style = "position: fixed; top: 45%; left: 60%; transform: translate(-50%, -50%);",
+              add_busy_spinner(
+                spin = "fading-circle",
+                width = "100px",
+                height = "100px"
+              )
             )
           )
         )

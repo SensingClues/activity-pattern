@@ -25,6 +25,7 @@ library(promises)
 # load the sensincluesr package
 library(devtools)
 devtools::install_github("sensingclues/sensingcluesr@v1.0.3", upgrade = "never")
+#library(sensingcluesr)
 # dynamic color maps for more then 12 colors
 library(colorRamps)
 
@@ -36,7 +37,7 @@ plan(multisession)
 
 # source function lib
 source("functions.R")
-
+source("ui_login.R")
 ## Some language package stuff
 
 ### CB: added these lines for treeToJSON
@@ -157,51 +158,16 @@ server <- function(input, output, session) {
   
   
   # -- MAKE POP UP MODAL FOR ENTERING USER CREDENTIALS AND DATA
-  
   # Return the UI for a modal dialog with data selection input. If 'failed' 
   # is TRUE, then display a message that the previous value was invalid.
-  dataModal <- function(failed = FALSE) {
+  dataModal <- function() {
     modalDialog(
-      tags$script(HTML(js)),
-      title = i18n$t("labels.clueyCredentials"), #"Cluey credentials",
-      # the selectbox for a server will only show in apps for testing
-      if (grepl("test", session$clientData$url_pathname)) {
-        message(paste("Adding selectbox for server because we are running on", session$clientData$url_pathname))
-        selectInput("server", label = "Server", 
-                    choices = c("focus.sensingclues", "focus.test.sensingclues"), 
-                    selected = "focus.sensingclues")
-      },
-      selectInput("lang", label = i18n$t("labels.chooseLanguage"), 
-                  choices = language_table$lang_short, selected = session$userData$sel_lang), #lang_short),
-      textInput("username", i18n$t("labels.Cluey-username")),
-      passwordInput("password", i18n$t("labels.Cluey-password")),
-      size = "s",
-      if (failed) 
-        div(tags$b(i18n$t("labels.invalid-credential"), style = "color: red;")),
-      footer = tagList(
-        actionButton("ok", "OK")
-      )
-    )
-  }
-  
-  resetModal <- function() {
-    modalDialog(
-      title = i18n$t("commands.logout"),
-      size = "s",
-      footer = tagList(
-        modalButton(i18n$t("commands.cancel")),
-        actionButton("reset", "OK")
-      )
-    )
-  }
-  resetModal <- function() {
-    modalDialog(
-      title = i18n$t("commands.logout"),
-      size = "s",
-      footer = tagList(
-        modalButton(i18n$t("commands.cancel")),
-        actionButton("reset", "OK")
-      )
+      mod_login_ui("login", browser_path = session$clientData$url_pathname),
+      title     = div(style = "text-align: center; width: 100%;", i18n$t("labels.clueyCredentials")),
+      size      = "s",
+      footer    = NULL,
+      easyClose = FALSE,
+      fade      = TRUE
     )
   }
   
@@ -211,15 +177,15 @@ server <- function(input, output, session) {
     showModal(dataModal())
   })
   
-  
   # When OK button is pressed, attempt to authenticate. If successful,
   # remove the modal.
   
   obs2 <- observe({
     req(input$ok)
     isolate({
-      Username <-  input$username
-      Password <-  input$password
+      Username <- input$username
+      Password <- input$password
+      
       session$userData$clueyUser <- Username
     })
     
@@ -232,43 +198,50 @@ server <- function(input, output, session) {
         session$userData$url <- "https://focus.test.sensingclues.org/"
       }
     }
-    message(paste("LOGGING INTO", session$userData$url))
+    message(paste0("LOGGING INTO  ", session$userData$url))
     
-    session$userData$cookie_mt <- sensingcluesr::login_cluey(username = Username, password = Password, url = session$userData$url)
+    session$userData$cookie_mt <- sensingcluesr::login_cluey(username = Username, 
+                                                             password = Password, 
+                                                             url = session$userData$url)
     if (!is.null(session$userData$cookie_mt)) {
       session$userData$authenticated <- TRUE
       obs1$suspend()
       removeModal()
       # after successful login
-      session$userData$hierarchy <- sensingcluesr::get_hierarchy(url = session$userData$url, lang = session$userData$lang_short) 
+      session$userData$hierarchy <- sensingcluesr::get_hierarchy(url = session$userData$url, 
+                                                                 lang = session$userData$lang_short)
       session$userData$concepts <- session$userData$hierarchy$concepts
-      
+      # get groups needs to be done only once
+      # debug
+      # message(paste0("Get initial groups for ",session$userData$clueyUser,' from ',from,' to ',to)) 
+      # session$userData$groups <- sensingcluesr::get_groups(from = from,
+      #                                                      to = to,
+      #                                                      cookie = session$userData$cookie_mt, 
+      #                                                      url = session$userData$url)
       # put start en end date in dateRangeInput
       updateDateRangeInput(session, "DateRange",
                            start = isolate(session$userData$date_from),
-                           end = isolate(session$userData$date_to),
-                           max = Sys.Date())
+                           end = isolate(session$userData$date_to))
       
       # which layers are available to the user
-      layers <- sensingcluesr::get_layer_details(cookie = session$userData$cookie_mt, url = session$userData$url)
-      # filter layers of the (Multi)Polygon type for the per area tab
-      session$userData$layers <- layers %>% filter(geometryType %in% c("Polygon", "MultiPolygon"))
+      session$userData$layers <- sensingcluesr::get_layer_details(cookie = session$userData$cookie_mt, url = session$userData$url)
       # message(paste0("LAYERS ", paste(session$userData$layers, sep = "|")))
+      updateSelectInput(session, "MapLayers", choices = c(i18n$t("labels.noneSelected"), sort(unlist(session$userData$layers$layerName))))
+      session$userData$selectedLayer <- i18n$t("labels.noneSelected")
       
       # enable input fields/buttons
       enable("DateRange")
       enable("GroupListDiv")
-      enable("GetData")
+      enable("BuildMap")
+      enable("MapLayers")
       
     } else {
       session$userData$authenticated <- FALSE
       # inform user
-      showModal(dataModal(failed = TRUE))
-    }     
+      showNotification(i18n$t("labels.invalid-credential"), type = "error")
+    }
   }
   )
-  
-  # -- End modal stuff --
   
   # Evt. taal wijzigen 
   
@@ -287,14 +260,29 @@ server <- function(input, output, session) {
   # ------- OUTPUT SIDE - SIDE PANEL SHOWING GROUPS, DATA DIVIDED IN TREE ---------
   
   output$userstatus <- renderUI({
-    # session$user is non-NULL only in authenticated sessions
     req(input$ok)
     isolate({
       Username <- input$username
     })
-    if (session$userData$authenticated) {
-      strong(paste(i18n$t("labels.connectedAs"), Username))
+    if (isTRUE(session$userData$authenticated)) {
+      tags$div(
+        style = "color: white; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 150px;",
+        tags$strong(paste(i18n$t("labels.connectedAs"), Username)),
+        tags$a(
+          href = "#",
+          id = "logout_link",
+          onclick = "event.preventDefault(); Shiny.setInputValue('logout_link', Math.random());",
+          style = "color: white; text-decoration: underline; cursor: pointer;",
+          i18n$t("Logout")
+        )
+      )
+    } else {
+      NULL
     }
+  })
+  observeEvent(input$logout_link, {
+    # Your logout code here, e.g.:
+    session$reload()
   })
   
   # observe group select box
@@ -467,7 +455,7 @@ server <- function(input, output, session) {
       if (rm11_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm11_node))}
       if (rm12_node %in% top_nodes) {invisible(session$userData$tree$RemoveChild(rm12_node))}
       
-
+      
       # Access the top-level nodes
       top_children <- session$userData$tree$children
       
@@ -493,9 +481,18 @@ server <- function(input, output, session) {
         }
       }
       
-
-      if (length(session$userData$tree$children) == 0) {session$userData$tree <- list()}
+      
+      if (length(session$userData$tree$children) > 0) {
+        # Keep  fauna as first-levgel node as the root
+        session$userData$tree <- session$userData$tree$children[[1]]
+        
+        # Optionally, set a friendly name for clarity
+        session$userData$tree$name <- paste0("Root: ", session$userData$tree$name)
+      }
+      
       jsonTree <- shinyTree::treeToJSON(session$userData$tree, pretty = TRUE, createNewId = FALSE)
+  
+      
       enable_all(c("DateRange", "GroupListDiv", "GetData"))
       return(jsonTree)
     }, error = function(e) {
@@ -505,6 +502,7 @@ server <- function(input, output, session) {
       return()
     })
   }) # end tree
+  
   
   output$conceptTree <- renderTree({
     # only render after we have selected a group and retrieved the counts from that group
@@ -867,10 +865,20 @@ server <- function(input, output, session) {
     session$userData$plot_data() %...>% {
       df <- .
       
-      #  Summarise data based on conceptlabel
-      df <- df %>%
-        group_by(conceptLabel) %>%
-        summarise(Counts = n(), .groups = 'drop')
+      time_input <- input$time_input
+      seasons <- user_defined_seasons()
+      
+      # Seasonal grouping if "season" view is selected
+      if (time_input == "season") {
+        df <- df %>%
+          filter(Period %in% names(seasons)) %>%
+          group_by(conceptLabel) %>%
+          summarise(Counts = n(), .groups = 'drop')
+      } else {
+        df <- df %>%
+          group_by(conceptLabel) %>%
+          summarise(Counts = n(), .groups = 'drop')
+      }
       
       message(paste(
         "Debug - bar_data(): Bar data transformation complete with",
@@ -878,12 +886,13 @@ server <- function(input, output, session) {
         "rows."
       ))
       
+      
       # Apply top X row filter
       topX <- input$topX
       if (topX > 0) {
         df <- df %>% 
           top_n(topX, Counts) %>% 
-          arrange(desc(Counts))
+          arrange(desc(Counts)) 
       }
       
       # Order species according to frequency of detection for the bar chart
@@ -964,7 +973,6 @@ server <- function(input, output, session) {
   })
   
   
-  
   ## --- MAIN OUTPUT ------
   
   # Create a reactiveValues container to hold the data frames
@@ -982,7 +990,8 @@ server <- function(input, output, session) {
         
         # Calculate max count for dynamic axis range
         max_count <- max(heatmap_data_df$Counts, na.rm = TRUE)
-        xaxis_range <- c(0, max_count + max_count * 0.1)  # 10% padding
+        max_count_bar <- max( bar_data_df$Counts, na.rm = TRUE)
+        xaxis_range <- c(0, max_count_bar + max_count_bar * 0.1)  # 10% padding
         
         # Create the bar chart
         bar_chart <- plot_ly(
@@ -1070,7 +1079,7 @@ server <- function(input, output, session) {
   # Download handler for the Plotly HTML plot
   output$download_plotly <- downloadHandler(
     filename = function() {
-      paste("combined_plot", ".html", sep = "")
+      paste("activity_pattern_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to, ".html", sep = "")
     },
     content = function(file) {
       p <- plot_cache()
@@ -1088,8 +1097,8 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       tmpdir <- tempdir()
-      bar_file <- file.path(tmpdir, "bar_data.csv")
-      heatmap_file <- file.path(tmpdir, "heatmap_data.csv")
+      bar_file <- file.path(tmpdir, paste0("bar_data_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to,".csv"))
+      heatmap_file <- file.path(tmpdir, paste0("heatmap_data_",session$userData$selectedGroupValue, "_", session$userData$date_from, "_", session$userData$date_to,".csv"))
       
       # Check that plot_data has been updated
       if (is.null(plot_data$bar_data) || is.null(plot_data$heatmap_data)) {
@@ -1133,55 +1142,55 @@ server <- function(input, output, session) {
       th(i18n$t("columns.longitude"), title = i18n$t("labels.WGS84Lon"))
     ))))
     
-    # Raw concept table
-    output$tableRawConcepts <- DT::renderDataTable({
-      message("Rendering raw concept table")
-      # req(session$userData$processed_obsdata)
-      
-      session$userData$processed_obsdata() %...>% {
-        df <- .
-        
-        # convert POSIXct to character that includes timezone, for datatable
-        df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
-        
-        df <- df %>%
-          select(conceptLabel,
-                 when,
-                 agentName,
-                 observationId,
-                 observationType,
-                 lat,
-                 lon)
-        # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
-        
-        DT::datatable(
-          df,
-          container = RawConceptsHovertext,
-          extensions = "Buttons",
-          options = list(
-            language = list(
-              url = paste0(
-                '//cdn.datatables.net/plug-ins/1.10.11/i18n/',
-                session$userData$lang_long,
-                '.json'
-              )
-            ),
-            paging = TRUE,
-            searching = TRUE,
-            fixedColumns = TRUE,
-            autoWidth = TRUE,
-            ordering = TRUE,
-            dom = 'frtip<"sep">B',
-            #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
-            pageLength = 999,
-            buttons = list(
-              list(extend = "copy", text = i18n$t("commands.copy")),
-              list(extend = "csv", text = i18n$t("commands.csv"))
-            )
-          )
-        ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
-      }
-    }) # end output tableRawConcepts
+    #' # Raw concept table
+    #' output$tableRawConcepts <- DT::renderDataTable({
+    #'   message("Rendering raw concept table")
+    #'   # req(session$userData$processed_obsdata)
+    #'   
+    #'   session$userData$processed_obsdata() %...>% {
+    #'     df <- .
+    #'     
+    #'     # convert POSIXct to character that includes timezone, for datatable
+    #'     df$when <- format(df$when, format = "%Y-%m-%dT%H:%M:%S%z") # %z shows as +0100 etc.
+    #'     
+    #'     df <- df %>%
+    #'       select(conceptLabel,
+    #'              when,
+    #'              agentName,
+    #'              observationId,
+    #'              observationType,
+    #'              lat,
+    #'              lon)
+    #'     # colnr <- which(names(df) == "when") # need for formatDate/toLocaleString
+    #'     
+    #'     DT::datatable(
+    #'       df,
+    #'       container = RawConceptsHovertext,
+    #'       extensions = "Buttons",
+    #'       options = list(
+    #'         language = list(
+    #'           url = paste0(
+    #'             '//cdn.datatables.net/plug-ins/1.10.11/i18n/',
+    #'             session$userData$lang_long,
+    #'             '.json'
+    #'           )
+    #'         ),
+    #'         paging = TRUE,
+    #'         searching = TRUE,
+    #'         fixedColumns = TRUE,
+    #'         autoWidth = TRUE,
+    #'         ordering = TRUE,
+    #'         dom = 'frtip<"sep">B',
+    #'         #'<f<t>ip>', #"ftripB", #'<"sep">frtipB', # dom =
+    #'         pageLength = 999,
+    #'         buttons = list(
+    #'           list(extend = "copy", text = i18n$t("commands.copy")),
+    #'           list(extend = "csv", text = i18n$t("commands.csv"))
+    #'         )
+    #'       )
+    #'     ) # %>% DT::formatDate(colnr, "toLocaleString") does not include timezone in locale string
+    #'   }
+    #' }) # end output tableRawConcepts
     
     
     ### TAB RAW OBSERVATIONS

@@ -23,16 +23,30 @@ body {
   
 }
 
+.container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+.row {
+  margin-left: 0px;
+  margin-right: 5px;
+}
+.row > [class*="col-"] {
+  padding-left: 0px;
+  padding-right: 5px;
+}
+
+
 
 /* ============================
    Header (20% viewport height with 10% horizontal padding)
 ============================ */
 .header {
   display: flex;
-  align-items: center;   /* Center elements vertically */
+  align-items: flex-start;  
   justify-content: space-between; /* Distribute items across the header */
   background-color: #004d40;
-  height: 11vh;
+  height: 20vh;
   padding: 2rem 7vw;      /* Adjust horizontal padding */
   border-bottom: 2px solid #00332b;
   position: relative;
@@ -50,6 +64,24 @@ body {
   letter-spacing: 1px;
   color: white;
   text-align: center;  /* Center the title text */
+}
+
+body {
+  z-index: 1000;
+  position: relative; /* z-index only works on positioned elements */
+}
+
+.content {
+  position: relative;      /* enable positioning */
+  top: -10vh;              /* pull up over the header by 20px (adjust as needed) */
+  margin: 0 50px;          /* xx px left/right margins */
+  z-index: 2;              /* above .header (which should be z-index:1 or 0) */
+  background: white;       /* or whatever bg you need */
+  border-radius: 10px;     /* rounded corners */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* optional drop-shadow */
+  overflow: hidden;        /* clip child content to rounded corners */
+  height: 85vh;            /* hoogte = xx% van viewport */
+  overflow-y: auto;        /* scrollen als inhoud groter is */
 }
 
 
